@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-sans); color: var(--color-text-primary); background: transparent; }
+  .app { max-width: 860px; margin: 0 auto; padding: 1.5rem 0; }
+  .header { margin-bottom: 1.5rem; }
+  .header h1 { font-size: 20px; font-weight: 500; }
+  .header p { font-size: 13px; color: var(--color-text-secondary); margin-top: 4px; }
+  .tabs { display: flex; gap: 2px; margin-bottom: 1.5rem; border-bottom: 0.5px solid var(--color-border-tertiary); }
+  .tab { padding: 8px 16px; font-size: 13px; font-weight: 400; cursor: pointer; border: none; background: transparent; color: var(--color-text-secondary); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.15s; }
+  .tab.active { color: var(--color-text-primary); border-bottom: 2px solid var(--color-text-primary); font-weight: 500; }
+  .tab:hover:not(.active) { color: var(--color-text-primary); }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .upload-zone { border: 1px dashed var(--color-border-secondary); border-radius: var(--border-radius-lg); padding: 2.5rem; text-align: center; cursor: pointer; transition: background 0.15s; position: relative; }
+  .upload-zone:hover { background: var(--color-background-secondary); }
+  .upload-icon { font-size: 28px; margin-bottom: 8px; }
+  .upload-zone h3 { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+  .upload-zone p { font-size: 12px; color: var(--color-text-secondary); }
+  .papers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-top: 1.25rem; }
+  .paper-card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1rem 1.25rem; position: relative; }
+  .paper-card.analyzing { border-color: #B5D4F4; }
+  .paper-card.done { border-color: #C0DD97; }
+  .paper-title { font-size: 13px; font-weight: 500; margin-bottom: 4px; line-height: 1.4; }
+  .paper-meta { font-size: 11px; color: var(--color-text-secondary); }
+  .paper-status { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; margin-top: 8px; padding: 3px 8px; border-radius: 20px; }
+  .status-processing { background: #E6F1FB; color: #0C447C; }
+  .status-done { background: #EAF3DE; color: #3B6D11; }
+  .status-pending { background: var(--color-background-secondary); color: var(--color-text-secondary); }
+  .paper-actions { display: flex; gap: 6px; margin-top: 10px; }
+  .btn-sm { font-size: 11px; padding: 4px 10px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: transparent; cursor: pointer; color: var(--color-text-primary); transition: background 0.12s; }
+  .btn-sm:hover { background: var(--color-background-secondary); }
+  .btn-sm.primary { background: var(--color-text-primary); color: var(--color-background-primary); border-color: var(--color-text-primary); }
+  .btn-sm.primary:hover { opacity: 0.85; }
+  .remove-btn { position: absolute; top: 8px; right: 8px; width: 20px; height: 20px; border: none; background: none; cursor: pointer; color: var(--color-text-secondary); font-size: 14px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+  .remove-btn:hover { color: var(--color-text-primary); }
+  .section-label { font-size: 11px; font-weight: 500; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; margin-top: 1.25rem; }
+  .analysis-area { background: var(--color-background-secondary); border-radius: var(--border-radius-lg); padding: 1.25rem; min-height: 120px; font-size: 13px; line-height: 1.7; color: var(--color-text-primary); white-space: pre-wrap; }
+  .analysis-area.empty { display: flex; align-items: center; justify-content: center; color: var(--color-text-secondary); font-style: italic; }
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1rem; align-items: center; }
+  .select-input { font-size: 13px; padding: 6px 10px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: var(--color-background-primary); color: var(--color-text-primary); cursor: pointer; }
+  .btn { font-size: 13px; padding: 6px 14px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: transparent; color: var(--color-text-primary); cursor: pointer; transition: background 0.12s; display: inline-flex; align-items: center; gap: 6px; }
+  .btn:hover { background: var(--color-background-secondary); }
+  .btn.primary { background: var(--color-text-primary); color: var(--color-background-primary); border-color: var(--color-text-primary); }
+  .btn.primary:hover { opacity: 0.85; }
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--color-border-secondary); border-top-color: var(--color-text-primary); border-radius: 50%; animation: spin 0.6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-dots::after { content: '.'; animation: dots 1.2s infinite; }
+  @keyframes dots { 0%{content:'.'} 33%{content:'..'} 66%{content:'...'} 100%{content:'.'} }
+  .citation-box { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 1rem 1.25rem; margin-bottom: 10px; font-size: 12px; font-family: var(--font-mono); line-height: 1.6; position: relative; }
+  .citation-copy { position: absolute; top: 8px; right: 8px; font-size: 11px; padding: 3px 8px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: var(--color-background-secondary); cursor: pointer; color: var(--color-text-secondary); font-family: var(--font-sans); }
+  .citation-copy:hover { color: var(--color-text-primary); }
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .compare-col { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1rem 1.25rem; }
+  .compare-col h4 { font-size: 13px; font-weight: 500; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 0.5px solid var(--color-border-tertiary); }
+  .empty-state { text-align: center; padding: 3rem; color: var(--color-text-secondary); font-size: 13px; }
+  .empty-icon { font-size: 32px; margin-bottom: 10px; opacity: 0.5; }
+  .prompt-area { width: 100%; font-size: 13px; padding: 10px 12px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: var(--color-background-primary); color: var(--color-text-primary); resize: vertical; min-height: 72px; font-family: var(--font-sans); margin-bottom: 8px; }
+  .prompt-area:focus { outline: none; border-color: var(--color-border-primary); }
+  @media (max-width: 600px) { .compare-grid { grid-template-columns: 1fr; } .papers-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>Research Paper Review Agent</h1>
+    <p>Upload PDFs to extract methods, results, and contributions — then compare papers and generate citations.</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('upload')">Papers</button>
+    <button class="tab" onclick="switchTab('analyze')">Analyze</button>
+    <button class="tab" onclick="switchTab('compare')">Compare</button>
+    <button class="tab" onclick="switchTab('citations')">Citations</button>
+  </div>
+
+  <div id="tab-upload" class="panel active">
+    <div class="upload-zone" onclick="document.getElementById('file-input').click()">
+      <input type="file" id="file-input" accept=".pdf" multiple onchange="handleFiles(event)" style="display:none">
+      <div class="upload-icon">📄</div>
+      <h3>Drop PDFs here or click to upload</h3>
+      <p>Supports multiple papers at once</p>
+    </div>
+    <div id="demo-notice" style="margin-top: 1rem; padding: 10px 14px; background: var(--color-background-secondary); border-radius: var(--border-radius-md); font-size: 12px; color: var(--color-text-secondary);">
+      <strong style="color: var(--color-text-primary);">Demo mode:</strong> No PDF uploaded yet? Try the sample papers below to see the agent in action.
+    </div>
+    <div class="section-label" style="margin-top: 1.25rem;">Loaded papers</div>
+    <div class="papers-grid" id="papers-grid">
+      <div class="empty-state" style="grid-column:1/-1;padding:1.5rem"><div class="empty-icon">🔬</div>Upload papers or load samples to begin</div>
+    </div>
+    <div style="margin-top: 1rem; display: flex; gap: 8px; flex-wrap: wrap;">
+      <button class="btn" onclick="loadSample('attention')">+ Load "Attention Is All You Need"</button>
+      <button class="btn" onclick="loadSample('bert')">+ Load "BERT"</button>
+      <button class="btn" onclick="loadSample('gpt3')">+ Load "GPT-3"</button>
+    </div>
+  </div>
+
+  <div id="tab-analyze" class="panel">
+    <div class="toolbar">
+      <select class="select-input" id="analyze-select"><option value="">— select a paper —</option></select>
+      <button class="btn primary" onclick="runAnalysis()">Analyze ↗</button>
+    </div>
+    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1rem;">
+      <span style="font-size: 12px; color: var(--color-text-secondary);">Extract:</span>
+      <label style="font-size: 12px; display:flex; gap:4px; align-items:center;"><input type="checkbox" id="chk-methods" checked> Methods</label>
+      <label style="font-size: 12px; display:flex; gap:4px; align-items:center;"><input type="checkbox" id="chk-results" checked> Results</label>
+      <label style="font-size: 12px; display:flex; gap:4px; align-items:center;"><input type="checkbox" id="chk-contrib" checked> Contributions</label>
+      <label style="font-size: 12px; display:flex; gap:4px; align-items:center;"><input type="checkbox" id="chk-limits" checked> Limitations</label>
+      <label style="font-size: 12px; display:flex; gap:4px; align-items:center;"><input type="checkbox" id="chk-future"> Future work</label>
+    </div>
+    <div class="section-label">Custom query (optional)</div>
+    <textarea class="prompt-area" id="custom-query" placeholder="e.g. What evaluation metrics were used? How does this compare to prior baselines?"></textarea>
+    <div class="section-label">Analysis output</div>
+    <div class="analysis-area empty" id="analysis-output">Select a paper and click Analyze</div>
+    <div style="display: flex; gap: 8px; margin-top: 10px;">
+      <button class="btn" onclick="copyText('analysis-output')">Copy text</button>
+      <button class="btn" onclick="sendToChat()">Ask follow-up ↗</button>
+    </div>
+  </div>
+
+  <div id="tab-compare" class="panel">
+    <div class="toolbar">
+      <select class="select-input" id="compare-a"><option value="">— Paper A —</option></select>
+      <select class="select-input" id="compare-b"><option value="">— Paper B —</option></select>
+      <button class="btn primary" onclick="runComparison()">Compare ↗</button>
+    </div>
+    <div id="compare-output">
+      <div class="empty-state"><div class="empty-icon">⚖</div>Load at least two papers to compare</div>
+    </div>
+  </div>
+
+  <div id="tab-citations" class="panel">
+    <div class="toolbar">
+      <select class="select-input" id="cite-format">
+        <option value="apa">APA</option>
+        <option value="mla">MLA</option>
+        <option value="chicago">Chicago</option>
+        <option value="bibtex">BibTeX</option>
+        <option value="ieee">IEEE</option>
+      </select>
+      <button class="btn primary" onclick="generateAllCitations()">Generate all ↗</button>
+    </div>
+    <div class="section-label">Citation notes</div>
+    <div id="citations-output">
+      <div class="empty-state"><div class="empty-icon">📚</div>Load papers and generate citations</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const MODEL = "claude-sonnet-4-20250514";
+const API_HEADERS = {
+  "Content-Type": "application/json",
+  "anthropic-dangerous-direct-browser-access": "true"
+};
+
+let papers = [];
+let analyses = {};
+
+const samplePapers = {
+  attention: {
+    id: 'attention', title: 'Attention Is All You Need', authors: 'Vaswani et al.', year: '2017', venue: 'NeurIPS', status: 'done',
+    abstract: 'We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely. Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable and requiring significantly less time to train.',
+    content: 'The Transformer uses multi-head self-attention with positional encodings. Key innovations: multi-head attention (8 heads in base model), scaled dot-product attention, positional encodings using sine and cosine functions. Architecture: encoder-decoder, 6 layers each, dmodel=512 (base) or 1024 (big). Trained on WMT 2014 EN-DE and EN-FR. Results: 28.4 BLEU EN-DE, 41.0 BLEU EN-FR. Training cost: 3.3×10^18 FLOPs for big model on 8 P100 GPUs for 3.5 days. Limitations: fixed-length context, quadratic attention complexity, limited interpretability.'
+  },
+  bert: {
+    id: 'bert', title: 'BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding', authors: 'Devlin et al.', year: '2019', venue: 'NAACL', status: 'done',
+    abstract: 'We introduce BERT, which stands for Bidirectional Encoder Representations from Transformers. BERT is designed to pre-train deep bidirectional representations from unlabeled text by jointly conditioning on both left and right context in all layers.',
+    content: 'BERT uses masked language modeling (MLM, 15% tokens masked) and next sentence prediction (NSP) as pre-training objectives. BERT-BASE: L=12, H=768, A=12, 110M params. BERT-LARGE: L=24, H=1024, A=16, 340M params. Pre-trained on BooksCorpus (800M words) + Wikipedia (2500M words). GLUE: 80.5% (7.7% absolute improvement). SQuAD 1.1: 93.2 F1. SQuAD 2.0: 83.1 F1. NER: 92.8 F1. Bidirectionality consistently outperforms left-to-right models. Limitations: NSP task later shown to be unhelpful, large compute for pre-training, static embeddings.'
+  },
+  gpt3: {
+    id: 'gpt3', title: 'Language Models are Few-Shot Learners', authors: 'Brown et al.', year: '2020', venue: 'NeurIPS', status: 'done',
+    abstract: 'We train GPT-3, an autoregressive language model with 175 billion parameters, and test its performance in the few-shot setting without any gradient updates or fine-tuning.',
+    content: 'GPT-3: 175B parameters, 96 attention layers, 96 heads, dmodel=12288. Trained on 300B tokens from filtered Common Crawl, WebText2, Books, Wikipedia. Training compute: 3640 petaflop/s-days. Evaluation: zero-shot, one-shot, few-shot (no gradient updates). TriviaQA: 71.2% (few-shot). WebQuestions: 41.5%. SuperGLUE: 71.8. EN-FR BLEU: 32.6. Performance scales smoothly with model size and in-context examples. Limitations: weaker than fine-tuned models on some tasks, generates plausible but factually incorrect text, high inference cost, potential for misuse.'
+  }
+};
+
+async function claudeAPI(messages, maxTokens = 1000) {
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: API_HEADERS,
+    body: JSON.stringify({ model: MODEL, max_tokens: maxTokens, messages })
+  });
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error(`API error ${resp.status}: ${err}`);
+  }
+  const data = await resp.json();
+  return data.content.map(c => c.text || '').join('');
+}
+
+function switchTab(name) {
+  const tabs = ['upload','analyze','compare','citations'];
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', tabs[i] === name));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+function loadSample(key) {
+  const p = samplePapers[key];
+  if (papers.find(x => x.id === p.id)) return;
+  papers.push({...p});
+  renderPapers();
+  updateSelects();
+  document.getElementById('demo-notice').style.display = 'none';
+}
+
+function handleFiles(e) {
+  Array.from(e.target.files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const b64 = ev.target.result.split(',')[1];
+      const id = 'pdf_' + Date.now();
+      papers.push({ id, title: file.name.replace('.pdf',''), authors: '', year: '', venue: '', b64, status: 'processing' });
+      renderPapers();
+      updateSelects();
+      extractPdfMeta(id, b64);
+    };
+    reader.readAsDataURL(file);
+  });
+  e.target.value = '';
+}
+
+async function extractPdfMeta(id, b64) {
+  const paper = papers.find(p => p.id === id);
+  if (!paper) return;
+  try {
+    const text = await claudeAPI([{
+      role: "user",
+      content: [
+        { type: "document", source: { type: "base64", media_type: "application/pdf", data: b64 } },
+        { type: "text", text: 'Extract: title, authors (e.g. "Smith et al."), year, venue. Return ONLY JSON: {"title":"...","authors":"...","year":"...","venue":"...","abstract":"first 2 sentences"}' }
+      ]
+    }], 400);
+    const meta = JSON.parse(text.replace(/```json|```/g,'').trim());
+    Object.assign(paper, meta, { status: 'done' });
+  } catch(e) {
+    paper.status = 'done';
+  }
+  renderPapers();
+  updateSelects();
+}
+
+function removePaper(id) {
+  papers = papers.filter(p => p.id !== id);
+  delete analyses[id];
+  renderPapers();
+  updateSelects();
+  if (!papers.length) document.getElementById('demo-notice').style.display = '';
+}
+
+function renderPapers() {
+  const grid = document.getElementById('papers-grid');
+  if (!papers.length) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;padding:1.5rem"><div class="empty-icon">🔬</div>Upload papers or load samples to begin</div>`;
+    return;
+  }
+  grid.innerHTML = papers.map(p => `
+    <div class="paper-card ${p.status === 'processing' ? 'analyzing' : 'done'}">
+      <button class="remove-btn" onclick="removePaper('${p.id}')">×</button>
+      <div class="paper-title">${p.title}</div>
+      <div class="paper-meta">${[p.authors, p.year, p.venue].filter(Boolean).join(' · ')}</div>
+      <div>${p.status === 'processing'
+        ? `<span class="paper-status status-processing"><span class="spinner"></span> Extracting…</span>`
+        : `<span class="paper-status status-done">✓ Ready</span>`}</div>
+      <div class="paper-actions">
+        <button class="btn-sm primary" onclick="switchTab('analyze');setAnalyzePaper('${p.id}')">Analyze</button>
+        <button class="btn-sm" onclick="generateCitation('${p.id}')">Cite</button>
+      </div>
+    </div>`).join('');
+}
+
+function updateSelects() {
+  const opts = papers.map(p => `<option value="${p.id}">${p.title.slice(0,48)}${p.title.length>48?'…':''}</option>`).join('');
+  [['analyze-select','— select a paper —'],['compare-a','— Paper A —'],['compare-b','— Paper B —']].forEach(([id, placeholder]) => {
+    const sel = document.getElementById(id);
+    const prev = sel.value;
+    sel.innerHTML = `<option value="">${placeholder}</option>` + opts;
+    if (prev) sel.value = prev;
+  });
+}
+
+function setAnalyzePaper(id) { document.getElementById('analyze-select').value = id; }
+
+async function runAnalysis() {
+  const id = document.getElementById('analyze-select').value;
+  if (!id) { alert('Please select a paper first.'); return; }
+  const paper = papers.find(p => p.id === id);
+  const out = document.getElementById('analysis-output');
+  out.className = 'analysis-area';
+
+  const sections = [
+    document.getElementById('chk-methods').checked && '## Methods & Approach',
+    document.getElementById('chk-results').checked && '## Key Results & Findings',
+    document.getElementById('chk-contrib').checked && '## Main Contributions',
+    document.getElementById('chk-limits').checked && '## Limitations',
+    document.getElementById('chk-future').checked && '## Future Work',
+  ].filter(Boolean).join('\n');
+
+  const custom = document.getElementById('custom-query').value.trim();
+  const fullPrompt = `Analyze this research paper and provide a structured review covering:\n${sections}${custom ? '\n## Custom Query\n' + custom : ''}\n\nBe specific with metrics and numbers. Use bullet points (•) for each section.`;
+
+  out.innerHTML = `<span class="spinner"></span> <span class="loading-dots">Analyzing paper</span>`;
+
+  try {
+    let text;
+    if (paper.b64) {
+      text = await claudeAPI([{ role: "user", content: [
+        { type: "document", source: { type: "base64", media_type: "application/pdf", data: paper.b64 } },
+        { type: "text", text: fullPrompt }
+      ]}]);
+    } else {
+      const context = `Title: "${paper.title}"\nAuthors: ${paper.authors}, ${paper.year}, ${paper.venue}\nAbstract: ${paper.abstract || ''}\nDetails: ${paper.content || ''}`;
+      text = await claudeAPI([{ role: "user", content: `${context}\n\n${fullPrompt}` }]);
+    }
+    analyses[id] = text;
+    out.textContent = text;
+  } catch(e) {
+    out.className = 'analysis-area';
+    out.textContent = '⚠ Error: ' + e.message;
+  }
+}
+
+async function runComparison() {
+  const idA = document.getElementById('compare-a').value;
+  const idB = document.getElementById('compare-b').value;
+  if (!idA || !idB || idA === idB) { alert('Please select two different papers.'); return; }
+  const pA = papers.find(p => p.id === idA);
+  const pB = papers.find(p => p.id === idB);
+  const out = document.getElementById('compare-output');
+  out.innerHTML = `<div class="analysis-area"><span class="spinner"></span> <span class="loading-dots">Comparing papers</span></div>`;
+
+  const ctx = p => `Title: ${p.title}\nAuthors: ${p.authors}, ${p.year}, ${p.venue}\nAbstract: ${p.abstract||''}\nDetails: ${p.content||''}`;
+
+  try {
+    const raw = await claudeAPI([{ role: "user", content: `Compare these two papers:\n\nPAPER A:\n${ctx(pA)}\n\nPAPER B:\n${ctx(pB)}\n\nReturn ONLY valid JSON (no markdown, no backticks):\n{"approach":{"a":"...","b":"..."},"results":{"a":"...","b":"..."},"novelty":{"a":"...","b":"..."},"limitations":{"a":"...","b":"..."},"overall":"2-3 sentence synthesis"}` }]);
+    const cmp = JSON.parse(raw.replace(/```json|```/g,'').trim());
+    out.innerHTML = `
+      <div class="compare-grid" style="margin-bottom:12px;">
+        <div class="compare-col"><h4>${pA.title.slice(0,42)}…</h4>
+          ${['approach','results','novelty','limitations'].map(k=>`<div style="margin-bottom:8px;"><div style="font-size:11px;font-weight:500;color:var(--color-text-secondary);margin-bottom:3px;">${k.charAt(0).toUpperCase()+k.slice(1)}</div><div style="font-size:12px;line-height:1.5;">${cmp[k]?.a||'—'}</div></div>`).join('')}
+        </div>
+        <div class="compare-col"><h4>${pB.title.slice(0,42)}…</h4>
+          ${['approach','results','novelty','limitations'].map(k=>`<div style="margin-bottom:8px;"><div style="font-size:11px;font-weight:500;color:var(--color-text-secondary);margin-bottom:3px;">${k.charAt(0).toUpperCase()+k.slice(1)}</div><div style="font-size:12px;line-height:1.5;">${cmp[k]?.b||'—'}</div></div>`).join('')}
+        </div>
+      </div>
+      <div style="background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:1rem 1.25rem;">
+        <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary);margin-bottom:6px;">Synthesis</div>
+        <div style="font-size:13px;line-height:1.7;">${cmp.overall||''}</div>
+      </div>`;
+  } catch(e) {
+    out.innerHTML = `<div class="analysis-area">⚠ Error: ${e.message}</div>`;
+  }
+}
+
+async function generateAllCitations() {
+  if (!papers.length) { alert('Load some papers first.'); return; }
+  const format = document.getElementById('cite-format').value;
+  const out = document.getElementById('citations-output');
+  out.innerHTML = `<div class="analysis-area"><span class="spinner"></span> <span class="loading-dots">Generating citations</span></div>`;
+  const list = papers.map(p => `- "${p.title}" by ${p.authors}, ${p.year}, ${p.venue}`).join('\n');
+  try {
+    const raw = await claudeAPI([{ role: "user", content: `Generate ${format.toUpperCase()} citations for these papers:\n${list}\n\nReturn ONLY a JSON array (no markdown): [{"formatted":"..."},...]` }]);
+    const cites = JSON.parse(raw.replace(/```json|```/g,'').trim());
+    out.innerHTML = cites.map((c, i) => `
+      <div class="citation-box">
+        <button class="citation-copy" onclick="navigator.clipboard.writeText(this.parentElement.querySelector('.cite-text').textContent).then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1200)})">Copy</button>
+        <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:6px;font-family:var(--font-sans);">${format.toUpperCase()} · ${papers[i]?.title?.slice(0,50)||''}…</div>
+        <div class="cite-text">${c.formatted}</div>
+      </div>`).join('');
+  } catch(e) {
+    out.innerHTML = `<div class="analysis-area">⚠ Error: ${e.message}</div>`;
+  }
+}
+
+async function generateCitation(id) {
+  switchTab('citations');
+  const format = document.getElementById('cite-format').value;
+  const paper = papers.find(p => p.id === id);
+  const out = document.getElementById('citations-output');
+  out.innerHTML = `<div class="analysis-area"><span class="spinner"></span> <span class="loading-dots">Generating citation</span></div>`;
+  try {
+    const text = await claudeAPI([{ role: "user", content: `Generate a single ${format.toUpperCase()} citation for: Title: "${paper.title}", Authors: ${paper.authors}, Year: ${paper.year}, Venue: ${paper.venue}. Return ONLY the formatted citation, nothing else.` }], 300);
+    out.innerHTML = `<div class="citation-box"><button class="citation-copy" onclick="navigator.clipboard.writeText(this.parentElement.querySelector('.cite-text').textContent).then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1200)})">Copy</button><div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:6px;font-family:var(--font-sans);">${format.toUpperCase()}</div><div class="cite-text">${text}</div></div>`;
+  } catch(e) {
+    out.innerHTML = `<div class="analysis-area">⚠ Error: ${e.message}</div>`;
+  }
+}
+
+function copyText(id) { navigator.clipboard.writeText(document.getElementById(id).textContent); }
+function sendToChat() {
+  const text = (document.getElementById('analysis-output').textContent || '').slice(0,400);
+  if (text) sendPrompt('Based on this analysis: ' + text + '\n\nWhat are the most significant implications and how might this work be extended?');
+}
+</script>
+</body>
+</html>
