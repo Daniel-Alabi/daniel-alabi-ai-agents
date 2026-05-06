@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SCADA Historian Analyst Agent v3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--sg:#00ff88;--sa:#ffaa00;--sr:#ff3344;--sb:#00aaff;--sp:#bb88ff;--bg:#0a0e14;--surf:#111820;--panel:#161e28;--bdr:rgba(0,170,255,0.15);--bdrb:rgba(0,170,255,0.32);--mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif}
+html,body{height:100%;background:var(--bg);font-family:var(--sans);color:#c8d8e8}
+.app{min-height:100vh;display:flex;flex-direction:column}
+.topbar{background:var(--surf);border-bottom:1px solid var(--bdrb);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.logo{background:rgba(0,170,255,0.12);border:1px solid var(--bdrb);border-radius:5px;padding:3px 10px;font-family:var(--mono);font-size:11px;color:var(--sb);letter-spacing:.1em}
+.ver{font-family:var(--mono);font-size:10px;color:rgba(0,170,255,0.4);margin-left:6px}
+.ttl{font-size:14px;font-weight:500;color:#e8f0f8}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--sg);animation:pulse 2s ease-in-out infinite;display:inline-block;margin-right:6px}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.slbl{font-family:var(--mono);font-size:11px;color:var(--sg)}
+.layout{display:grid;grid-template-columns:250px 1fr;flex:1;min-height:0}
+.sidebar{background:var(--surf);border-right:1px solid var(--bdr);padding:16px;display:flex;flex-direction:column;gap:14px;overflow-y:auto}
+.plbl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:rgba(0,170,255,0.55);text-transform:uppercase;margin-bottom:7px}
+.upzone{border:1.5px dashed rgba(0,170,255,0.28);border-radius:7px;padding:16px 12px;text-align:center;cursor:pointer;transition:all .2s;background:rgba(0,170,255,0.02)}
+.upzone:hover,.upzone.drag{border-color:rgba(0,170,255,0.6);background:rgba(0,170,255,0.07)}
+.upico{width:30px;height:30px;border:1.5px solid rgba(0,170,255,0.35);border-radius:5px;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;color:var(--sb);font-size:14px}
+.uptxt{font-size:11px;color:rgba(200,216,232,0.55);line-height:1.5}
+.uptxt strong{color:var(--sb);font-weight:500}
+input[type=file]{display:none}
+.sbtn{width:100%;background:rgba(0,170,255,0.07);border:1px solid var(--bdrb);border-radius:5px;color:var(--sb);font-family:var(--mono);font-size:10px;padding:7px;cursor:pointer;letter-spacing:.04em;transition:background .2s;margin-top:6px;text-align:center}
+.sbtn:hover{background:rgba(0,170,255,0.15)}
+.sbtn.green{color:var(--sg);border-color:rgba(0,255,136,0.3);background:rgba(0,255,136,0.05)}
+.sbtn.green:hover{background:rgba(0,255,136,0.1)}
+.tgrp{display:flex;flex-wrap:wrap;gap:5px}
+.tag{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:4px;cursor:pointer;border:1px solid transparent;transition:all .15s;user-select:none}
+.tag.on{background:rgba(0,170,255,0.14);border-color:var(--sb);color:var(--sb)}
+.tag.off{background:rgba(200,216,232,0.04);border-color:rgba(200,216,232,0.1);color:rgba(200,216,232,0.45)}
+.tag.off:hover{border-color:rgba(0,170,255,0.28);color:rgba(200,216,232,0.75)}
+.irow{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
+.ilbl{font-size:11px;color:rgba(200,216,232,0.55)}
+.iinp{background:rgba(0,0,0,0.3);border:1px solid var(--bdr);border-radius:4px;color:#c8d8e8;font-family:var(--mono);font-size:11px;padding:3px 7px;width:60px;text-align:right}
+.iinp:focus{outline:none;border-color:var(--sb)}
+.runbtn{width:100%;background:rgba(0,170,255,0.14);border:1px solid var(--sb);border-radius:7px;color:var(--sb);font-family:var(--mono);font-size:11px;letter-spacing:.07em;padding:9px;cursor:pointer;transition:all .2s;font-weight:500}
+.runbtn:hover:not(:disabled){background:rgba(0,170,255,0.24)}
+.runbtn:disabled{opacity:.35;cursor:not-allowed}
+.finfo{background:rgba(0,255,136,0.04);border:1px solid rgba(0,255,136,0.14);border-radius:5px;padding:7px 9px;font-family:var(--mono);font-size:10px;color:var(--sg);display:none;margin-top:6px;line-height:1.5}
+.finfo.show{display:block}
+.bline-badge{font-family:var(--mono);font-size:10px;padding:2px 7px;background:rgba(187,136,255,0.1);border:1px solid rgba(187,136,255,0.22);color:var(--sp);border-radius:4px;margin-left:6px}
+.bfile{font-family:var(--mono);font-size:10px;color:rgba(0,170,255,0.6);padding:3px 7px;background:rgba(0,170,255,0.06);border-radius:4px;display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.bfile span{color:rgba(255,51,68,0.5);cursor:pointer}
+.bfile span:hover{color:var(--sr)}
+.carea{display:flex;flex-direction:column;min-height:0}
+.tbar{display:flex;border-bottom:1px solid var(--bdr);background:var(--surf);padding:0 16px;overflow-x:auto;flex-shrink:0}
+.tab{font-family:var(--mono);font-size:10px;letter-spacing:.06em;padding:12px 14px;cursor:pointer;border-bottom:2px solid transparent;color:rgba(200,216,232,0.38);transition:all .15s;white-space:nowrap}
+.tab.on{color:var(--sb);border-bottom-color:var(--sb)}
+.tab:hover:not(.on){color:rgba(200,216,232,0.65)}
+.tcont{flex:1;padding:18px;overflow-y:auto}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:300px;gap:12px;color:rgba(200,216,232,0.22)}
+.emico{width:52px;height:52px;border:1.5px solid rgba(200,216,232,0.1);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px}
+.empty p{font-size:12px;font-family:var(--mono)}
+.mrow{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:16px}
+.mc{background:var(--panel);border:1px solid var(--bdr);border-radius:7px;padding:11px 13px}
+.mc.d{border-color:rgba(255,51,68,0.28)}.mc.w{border-color:rgba(255,170,0,0.28)}.mc.ok{border-color:rgba(0,255,136,0.22)}.mc.pu{border-color:rgba(187,136,255,0.22)}
+.mv{font-family:var(--mono);font-size:20px;font-weight:500;color:#e8f0f8;margin-bottom:2px}
+.mv.d{color:var(--sr)}.mv.w{color:var(--sa)}.mv.ok{color:var(--sg)}.mv.pu{color:var(--sp)}
+.ml{font-size:10px;color:rgba(200,216,232,0.38);letter-spacing:.04em}
+.cwrap{background:var(--panel);border:1px solid var(--bdr);border-radius:7px;padding:14px;margin-bottom:14px}
+.ctitle{font-family:var(--mono);font-size:10px;color:rgba(0,170,255,0.65);letter-spacing:.09em;margin-bottom:11px}
+.alist{display:flex;flex-direction:column;gap:9px}
+.acard{background:var(--panel);border:1px solid var(--bdr);border-left:3px solid var(--sa);border-radius:0 7px 7px 0;padding:13px 15px}
+.acard.cr{border-left-color:var(--sr)}.acard.in{border-left-color:var(--sb)}.acard.co{border-left-color:var(--sp)}
+.ahead{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:7px}
+.atitle{font-size:12px;font-weight:500;color:#e8f0f8}
+.sbadge{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:3px;letter-spacing:.05em;white-space:nowrap;flex-shrink:0;margin-left:8px}
+.sbadge.cr{background:rgba(255,51,68,0.13);color:var(--sr);border:1px solid rgba(255,51,68,0.28)}
+.sbadge.wa{background:rgba(255,170,0,0.11);color:var(--sa);border:1px solid rgba(255,170,0,0.28)}
+.sbadge.in{background:rgba(0,170,255,0.09);color:var(--sb);border:1px solid rgba(0,170,255,0.24)}
+.sbadge.co{background:rgba(187,136,255,0.1);color:var(--sp);border:1px solid rgba(187,136,255,0.24)}
+.ameta{font-family:var(--mono);font-size:10px;color:rgba(200,216,232,0.38);margin-bottom:5px}
+.adesc{font-size:11px;color:rgba(200,216,232,0.65);line-height:1.5}
+.aicause{margin-top:8px;background:rgba(0,170,255,0.04);border:1px solid rgba(0,170,255,0.13);border-radius:5px;padding:9px 11px}
+.ailbl{font-family:var(--mono);font-size:10px;color:var(--sb);letter-spacing:.07em;margin-bottom:4px}
+.aitext{font-size:11px;color:rgba(200,216,232,0.82);line-height:1.6}
+.sblock{background:var(--panel);border:1px solid var(--bdr);border-radius:7px;padding:18px;margin-bottom:14px}
+.sblock h3{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--sb);margin-bottom:11px;text-transform:uppercase}
+.sblock p{font-size:12px;line-height:1.7;color:rgba(200,216,232,0.78)}
+.atable{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed}
+.atable th{text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:.07em;color:rgba(0,170,255,0.55);padding:5px 9px;border-bottom:1px solid var(--bdr)}
+.atable td{padding:7px 9px;border-bottom:1px solid rgba(200,216,232,0.04);color:rgba(200,216,232,0.72);vertical-align:top;word-break:break-word}
+.pchip{font-family:var(--mono);font-size:10px;padding:2px 5px;border-radius:3px}
+.pchip.p1{background:rgba(255,51,68,0.13);color:var(--sr)}.pchip.p2{background:rgba(255,170,0,0.11);color:var(--sa)}.pchip.p3{background:rgba(0,255,136,0.07);color:var(--sg)}
+.corr-group{border:1px solid rgba(187,136,255,0.18);border-radius:7px;padding:13px;margin-bottom:10px;background:rgba(187,136,255,0.03)}
+.corr-group-title{font-family:var(--mono);font-size:11px;color:var(--sp);margin-bottom:8px;font-weight:500}
+.corr-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:7px}
+.corr-tag{font-family:var(--mono);font-size:10px;padding:2px 7px;background:rgba(187,136,255,0.1);border:1px solid rgba(187,136,255,0.22);color:var(--sp);border-radius:4px}
+.corr-desc{font-size:11px;color:rgba(200,216,232,0.72);line-height:1.5}
+.crule{background:var(--panel);border:1px solid var(--bdr);border-radius:7px;padding:13px;margin-bottom:9px}
+.crule-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
+.crule-title{font-size:12px;font-weight:500;color:#e8f0f8}
+.delbtn{font-family:var(--mono);font-size:10px;color:rgba(255,51,68,0.5);background:none;border:none;cursor:pointer;padding:0}
+.delbtn:hover{color:var(--sr)}
+.crule-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.cinp{background:rgba(0,0,0,0.3);border:1px solid var(--bdr);border-radius:4px;color:#c8d8e8;font-family:var(--mono);font-size:11px;padding:4px 8px;width:100%}
+.cinp:focus{outline:none;border-color:var(--sb)}
+.cinp-lbl{font-size:10px;color:rgba(200,216,232,0.45);margin-bottom:3px;font-family:var(--mono)}
+.addrule{width:100%;background:rgba(187,136,255,0.07);border:1px dashed rgba(187,136,255,0.28);border-radius:6px;color:var(--sp);font-family:var(--mono);font-size:11px;padding:9px;cursor:pointer;transition:background .2s;margin-top:4px}
+.addrule:hover{background:rgba(187,136,255,0.13)}
+.expbtn{background:rgba(0,255,136,0.07);border:1px solid rgba(0,255,136,0.25);border-radius:6px;color:var(--sg);font-family:var(--mono);font-size:11px;padding:8px 14px;cursor:pointer;transition:all .2s}
+.expbtn:hover{background:rgba(0,255,136,0.14)}
+.hint{font-size:11px;color:rgba(200,216,232,0.35);line-height:1.6;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="logo">SCADA</div><span class="ver">v3</span>
+    <span class="ttl">Historian Analyst Agent</span>
+  </div>
+  <div style="display:flex;align-items:center">
+    <div class="dot"></div><span class="slbl">FULL SUITE ONLINE</span>
+  </div>
+</div>
+
+<div class="layout">
+<div class="sidebar">
+
+  <div>
+    <div class="plbl">Primary Dataset</div>
+    <div class="upzone" id="upzone">
+      <div class="upico">↑</div>
+      <div class="uptxt"><strong>Drop CSV here</strong><br>or click to browse<br>time-series process data</div>
+      <input type="file" id="fi" accept=".csv">
+    </div>
+    <div class="finfo" id="finfo"></div>
+    <button class="sbtn" onclick="loadDemo()">▶ Load demo dataset</button>
+  </div>
+
+  <div>
+    <div class="plbl">Baseline Files <span class="bline-badge" id="blcount">0 loaded</span></div>
+    <div class="upzone" id="blzone" style="padding:10px">
+      <div class="uptxt"><strong>Drop additional CSVs</strong><br>to build learned baseline</div>
+      <input type="file" id="bli" accept=".csv" multiple>
+    </div>
+    <div id="bllist" style="margin-top:6px"></div>
+  </div>
+
+  <div>
+    <div class="plbl">Tag Selection</div>
+    <div class="tgrp" id="tgrp"><span class="tag on" data-tag="all" onclick="filterTag(this)">ALL</span></div>
+  </div>
+
+  <div>
+    <div class="plbl">Detection Config</div>
+    <div class="irow"><span class="ilbl">Sigma threshold</span><input class="iinp" id="sigma" type="number" value="2.5" step="0.1" min="1" max="5"></div>
+    <div class="irow"><span class="ilbl">Spike window (pts)</span><input class="iinp" id="wsize" type="number" value="5" step="1" min="3" max="20"></div>
+    <div class="irow"><span class="ilbl">Flat-line threshold</span><input class="iinp" id="flat" type="number" value="0.01" step="0.01" min="0"></div>
+    <div class="irow"><span class="ilbl">Corr. window (pts)</span><input class="iinp" id="corrwin" type="number" value="3" step="1" min="1" max="10"></div>
+  </div>
+
+  <button class="runbtn" id="runbtn" onclick="runAnalysis()" disabled>⬡ RUN FULL ANALYSIS</button>
+
+</div><!-- /sidebar -->
+
+<div class="carea">
+  <div class="tbar">
+    <div class="tab on" data-tab="overview" onclick="st('overview')">OVERVIEW</div>
+    <div class="tab" data-tab="anomalies" onclick="st('anomalies')">ANOMALIES<span id="acnt"></span></div>
+    <div class="tab" data-tab="correlate" onclick="st('correlate')">CORRELATION</div>
+    <div class="tab" data-tab="trends" onclick="st('trends')">TRENDS</div>
+    <div class="tab" data-tab="rules" onclick="st('rules')">CUSTOM RULES</div>
+    <div class="tab" data-tab="summary" onclick="st('summary')">REPORT</div>
+  </div>
+  <div class="tcont" id="tcont">
+    <div class="empty" id="emptyState">
+      <div class="emico">▨</div>
+      <p>Load a dataset and run analysis to begin</p>
+    </div>
+    <div id="dyn" style="display:none"></div>
+  </div>
+</div><!-- /carea -->
+</div><!-- /layout -->
+</div><!-- /app -->
+
+<script>
+let data=null,anomalies=[],currentTab='overview',charts=[],baselineFiles=[],baselineStats={},customRules=[];
+
+/* ── Demo data ─────────────────────────────────────────── */
+const DEMO=`timestamp,Temperature_C,Pressure_bar,Flow_m3h,Vibration_mm_s,Power_kW
+2024-01-15 06:00,82.3,4.21,142.1,1.2,245
+2024-01-15 06:05,82.7,4.19,143.0,1.3,246
+2024-01-15 06:10,83.1,4.22,141.8,1.1,247
+2024-01-15 06:15,83.0,4.20,142.5,1.2,246
+2024-01-15 06:20,83.4,4.21,143.2,1.4,248
+2024-01-15 06:25,97.8,4.19,80.3,1.3,249
+2024-01-15 06:30,98.2,4.22,79.1,1.2,247
+2024-01-15 06:35,99.1,3.92,77.5,1.5,250
+2024-01-15 06:40,100.5,3.85,75.2,2.8,252
+2024-01-15 06:45,101.2,3.81,73.8,4.1,255
+2024-01-15 06:50,102.8,3.79,72.1,5.9,258
+2024-01-15 06:55,104.1,3.77,70.5,7.2,261
+2024-01-15 07:00,105.3,3.74,68.9,8.8,264
+2024-01-15 07:05,106.7,3.72,67.3,10.1,268
+2024-01-15 07:10,108.2,3.70,65.8,11.4,272
+2024-01-15 07:15,107.9,3.71,66.1,11.1,271
+2024-01-15 07:20,106.1,3.73,67.5,9.8,269
+2024-01-15 07:25,104.3,3.75,69.2,8.3,265
+2024-01-15 07:30,102.7,3.78,71.0,6.5,260
+2024-01-15 07:35,100.9,3.81,73.1,4.9,256
+2024-01-15 07:40,98.8,3.84,75.8,3.2,252
+2024-01-15 07:45,96.2,3.88,78.9,1.8,248
+2024-01-15 07:50,93.5,3.92,82.3,1.3,245
+2024-01-15 07:55,90.8,3.97,86.1,1.1,243
+2024-01-15 08:00,88.1,4.01,90.2,1.2,241
+2024-01-15 08:05,85.9,4.08,95.8,1.1,240
+2024-01-15 08:10,84.2,4.13,101.3,1.3,243
+2024-01-15 08:15,83.4,4.16,108.7,1.2,244
+2024-01-15 08:20,82.9,4.18,118.2,1.1,245
+2024-01-15 08:25,82.5,4.19,128.9,1.2,245
+2024-01-15 08:30,82.3,4.20,138.1,1.1,244
+2024-01-15 08:35,82.1,4.21,141.5,1.2,245
+2024-01-15 08:40,82.0,4.21,142.0,1.1,245
+2024-01-15 08:45,82.0,4.21,142.1,1.2,245
+2024-01-15 08:50,82.0,4.21,142.0,1.1,245
+2024-01-15 08:55,82.1,4.21,142.2,1.2,245
+2024-01-15 09:00,82.2,4.20,141.9,1.1,246
+2024-01-15 09:05,82.3,4.20,142.1,1.2,246
+2024-01-15 09:10,82.5,4.19,142.3,1.1,246
+2024-01-15 09:15,82.7,4.19,142.5,1.2,247
+2024-01-15 09:20,83.1,4.18,141.8,1.3,247
+2024-01-15 09:25,130.4,4.18,141.9,1.2,248
+2024-01-15 09:30,84.1,4.17,142.0,1.1,248
+2024-01-15 09:35,83.9,4.17,142.1,1.2,248
+2024-01-15 09:40,83.8,4.16,141.9,1.1,247
+2024-01-15 09:45,83.7,4.16,142.0,1.2,247
+2024-01-15 09:50,83.6,4.15,142.1,1.1,247
+2024-01-15 09:55,83.5,4.15,141.8,1.2,247
+2024-01-15 10:00,83.4,4.14,142.2,1.1,246`;
+
+/* ── Expert rule engine ─────────────────────────────────── */
+const RULES_DB={
+  temperature:{
+    stat_outlier:{
+      critical:a=>`Temperature of ${a.value.toFixed(1)}°C is ${a.zscore.toFixed(1)}σ above mean — consistent with blocked cooling circuit, fouled heat exchanger, or loss of coolant. Verify cooling water supply pressure and inspect exchanger differential immediately.`,
+      warning:a=>`Temperature at ${a.value.toFixed(1)}°C (${a.zscore.toFixed(1)}σ) indicates reduced cooling efficiency, scale build-up, or intermittent flow restriction. Schedule exchanger inspection within 24 h.`
+    },
+    spike:{
+      critical:a=>`Sudden spike to ${a.value.toFixed(1)}°C — probable cooling pump trip or valve closure on cooling circuit. Check cooling water pump run status and control valve position immediately.`,
+      warning:a=>`Abrupt rise to ${a.value.toFixed(1)}°C — verify cooling circuit integrity and upstream process conditions.`
+    },
+    flatline:()=>`Temperature frozen — sensor open/short circuit or transmitter power loss. Check field wiring and 4-20 mA output. Cross-reference adjacent thermocouple.`
+  },
+  pressure:{
+    stat_outlier:{
+      critical:a=>`Pressure ${a.value.toFixed(2)} bar is ${a.zscore.toFixed(1)}σ outside normal — likely downstream valve closure, pipe blockage, or pump runout. Verify isolation status and check relief valve activation.`,
+      warning:a=>`Pressure deviation of ${a.value.toFixed(2)} bar (${a.zscore.toFixed(1)}σ) — partial restriction, valve seat fouling, or filter loading. Schedule pressure drop survey.`
+    },
+    spike:{
+      critical:a=>`Pressure spike to ${a.value.toFixed(2)} bar — water hammer or rapid valve closure. Inspect pipe supports, check valves, and pump start/stop sequencing.`,
+      warning:a=>`Brief surge to ${a.value.toFixed(2)} bar — review pump start sequence or upstream valve actuation timing.`
+    },
+    flatline:()=>`Pressure transmitter frozen — check impulse line blockage, frozen sensing legs, or transmitter fault. Perform wet-leg verification. Do not assume stable system pressure.`
+  },
+  flow:{
+    stat_outlier:{
+      critical:a=>`Flow at ${a.value.toFixed(1)} m³/h is ${a.zscore.toFixed(1)}σ from normal — check for cavitation, closed inline valve, or pump impeller wear. Verify control valve is not failed-open.`,
+      warning:a=>`Flow deviation to ${a.value.toFixed(1)} m³/h — strainer fouling, partial valve closure, or pump wear-ring degradation. Schedule strainer blowdown.`
+    },
+    spike:{
+      critical:a=>`Sudden flow change to ${a.value.toFixed(1)} m³/h — control valve hunting, slug flow, or vortex meter upset from gas entrainment. Inspect upstream separator and check PID tuning.`,
+      warning:a=>`Flow surge to ${a.value.toFixed(1)} m³/h — review upstream demand or check intermittent pump discharge check valve flutter.`
+    },
+    flatline:()=>`Flow meter frozen — for mag meters check empty pipe or grounding failure; for vortex check minimum Re; for DP meters inspect impulse lines. Confirm with alternative measurement.`
+  },
+  vibration:{
+    stat_outlier:{
+      critical:a=>`Vibration at ${a.value.toFixed(1)} mm/s is critically elevated (${a.zscore.toFixed(1)}σ) — advanced bearing failure, rotor imbalance, or structural resonance. Initiate shutdown for inspection. Catastrophic failure risk is high.`,
+      warning:a=>`Vibration at ${a.value.toFixed(1)} mm/s (${a.zscore.toFixed(1)}σ) — emerging bearing wear or minor imbalance. Schedule spectrum analysis within next planned maintenance window.`
+    },
+    spike:{
+      critical:a=>`Vibration spike to ${a.value.toFixed(1)} mm/s — sudden rotor imbalance (lost balance weight), bearing race spall, or hydraulic excitation from cavitation. Reduce load immediately.`,
+      warning:a=>`Transient vibration peak at ${a.value.toFixed(1)} mm/s — check coupling insert, loose fasteners, or brief cavitation event. Capture spectrum data.`
+    },
+    flatline:()=>`Vibration transducer frozen — cable fault, connector corrosion, or monitoring channel failure. A stuck-at-zero reading masks real machinery deterioration. Inspect sensor urgently.`
+  },
+  power:{
+    stat_outlier:{
+      critical:a=>`Power at ${a.value.toFixed(0)} kW is ${a.zscore.toFixed(1)}σ from expected — if elevated: mechanical overload, increased viscosity, or bearing drag; if low: partial phase loss or drive fault. Cross-reference flow and pressure.`,
+      warning:a=>`Power draw of ${a.value.toFixed(0)} kW deviates ${a.zscore.toFixed(1)}σ — monitor motor temperature and check for drive efficiency degradation or supply voltage imbalance.`
+    },
+    spike:{
+      critical:a=>`Power spike to ${a.value.toFixed(0)} kW — motor starting transient, locked-rotor condition, or sudden mechanical load. Check motor protection relay trip log.`,
+      warning:a=>`Power surge to ${a.value.toFixed(0)} kW — review load schedule and confirm no mechanical binding or fluid density increase.`
+    },
+    flatline:()=>`Power meter frozen — check energy metering communication link and pulse output wiring. A frozen reading during active operation may mask overload conditions.`
+  },
+  generic:{
+    stat_outlier:{
+      critical:a=>`Value ${a.value.toFixed(3)} is ${a.zscore.toFixed(1)}σ outside historical distribution (μ=${a.mean.toFixed(3)}, σ=${a.std.toFixed(3)}). Investigate upstream process conditions and verify sensor calibration.`,
+      warning:a=>`Statistical deviation of ${a.zscore.toFixed(1)}σ — value ${a.value.toFixed(3)} vs mean ${a.mean.toFixed(3)}. Monitor trend and inspect for calibration drift.`
+    },
+    spike:{
+      critical:a=>`Abrupt signal change to ${a.value.toFixed(3)} — investigate process disturbance or control system fault. Verify with secondary instrument.`,
+      warning:a=>`Transient spike to ${a.value.toFixed(3)} — review control loop output and upstream process changes.`
+    },
+    flatline:a=>`Signal frozen at ${a.value.toFixed(3)}. Check transmitter power supply and wiring. Never assume stable process condition without field verification.`
+  }
+};
+
+function getCat(tag){
+  const t=tag.toLowerCase();
+  if(t.includes('temp')||t.includes('tmp')||/_c$/.test(t)||/_f$/.test(t))return'temperature';
+  if(t.includes('press')||t.includes('prs')||t.includes('_bar')||t.includes('_psi'))return'pressure';
+  if(t.includes('flow')||t.includes('flw')||t.includes('_m3')||t.includes('_gpm'))return'flow';
+  if(t.includes('vib')||t.includes('accel')||t.includes('_mm_'))return'vibration';
+  if(t.includes('power')||t.includes('kw')||t.includes('mw')||t.includes('watt'))return'power';
+  return'generic';
+}
+
+function explain(a){
+  const cr=customRules.find(r=>r.tag&&a.tag.toLowerCase().includes(r.tag.toLowerCase()));
+  if(cr){
+    if(cr.hi&&a.value>parseFloat(cr.hi))return cr.msg||`${a.tag} exceeded user-defined high limit of ${cr.hi}.`;
+    if(cr.lo&&a.value<parseFloat(cr.lo))return cr.msg||`${a.tag} fell below user-defined low limit of ${cr.lo}.`;
+    if(cr.msg)return cr.msg;
+  }
+  const cat=getCat(a.tag);
+  const db=RULES_DB[cat]||RULES_DB.generic;
+  const tr=db[a.type]||RULES_DB.generic[a.type];
+  if(!tr)return RULES_DB.generic.stat_outlier.warning(a);
+  if(a.type==='flatline')return typeof tr==='function'?tr(a):(tr[a.severity]||tr.warning)(a);
+  const fn=tr[a.severity]||tr.warning||RULES_DB.generic[a.type]?.warning;
+  return fn?fn(a):`Value ${a.value.toFixed(3)} flagged (${a.type}, ${a.severity}).`;
+}
+
+/* ── CSV / file utils ───────────────────────────────────── */
+function parseCSV(txt){
+  const lines=txt.trim().split('\n');
+  const h=lines[0].split(',').map(x=>x.trim());
+  const rows=lines.slice(1).map(l=>{const v=l.split(',');const r={};h.forEach((x,i)=>r[x]=v[i]?v[i].trim():'');return r;});
+  return{headers:h,rows};
+}
+function mean(a){return a.reduce((x,y)=>x+y,0)/a.length;}
+function std(a){const m=mean(a);return Math.sqrt(a.reduce((s,v)=>s+(v-m)**2,0)/a.length);}
+
+function computeBaselineStats(d){
+  const stats={};
+  d.headers.filter(h=>h.toLowerCase()!=='timestamp').forEach(tag=>{
+    const vs=d.rows.map(r=>parseFloat(r[tag])).filter(v=>!isNaN(v));
+    if(vs.length>2)stats[tag]={m:mean(vs),s:std(vs),n:vs.length};
+  });
+  return stats;
+}
+
+function mergeBaseline(newStats){
+  Object.keys(newStats).forEach(tag=>{
+    if(baselineStats[tag]){
+      const a=baselineStats[tag],b=newStats[tag];
+      const n=a.n+b.n;
+      const m=(a.m*a.n+b.m*b.n)/n;
+      baselineStats[tag]={m,s:Math.sqrt((a.n*(a.s**2+a.m**2)+b.n*(b.s**2+b.m**2))/n-m**2),n};
+    } else baselineStats[tag]=newStats[tag];
+  });
+}
+
+function loadDemo(){processText(DEMO,'pump_station_demo.csv');}
+
+function processText(txt,fname){
+  data=parseCSV(txt);
+  const fi=document.getElementById('finfo');
+  fi.textContent=fname+' — '+data.rows.length+' records, '+(data.headers.length-1)+' tags';
+  fi.classList.add('show');
+  const tg=document.getElementById('tgrp');
+  tg.innerHTML='<span class="tag on" data-tag="all" onclick="filterTag(this)">ALL</span>';
+  data.headers.filter(h=>h.toLowerCase()!=='timestamp').forEach(tag=>{
+    const s=document.createElement('span');
+    s.className='tag on';s.dataset.tag=tag;s.textContent=tag.split('_')[0];s.title=tag;
+    s.onclick=function(){filterTag(this);};
+    tg.appendChild(s);
+  });
+  document.getElementById('runbtn').disabled=false;
+}
+
+function filterTag(el){
+  const tags=document.querySelectorAll('.tag');
+  if(el.dataset.tag==='all'){tags.forEach(t=>{t.classList.add('on');t.classList.remove('off');});return;}
+  el.classList.toggle('on');el.classList.toggle('off');
+  const others=Array.from(tags).filter(t=>t.dataset.tag!=='all');
+  const allT=document.querySelector('.tag[data-tag="all"]');
+  const allOn=others.every(t=>t.classList.contains('on'));
+  allT.classList.toggle('on',allOn);allT.classList.toggle('off',!allOn);
+}
+
+/* ── File drop/click handlers ───────────────────────────── */
+function wireUpload(zoneId,inputId,isBaseline,multi){
+  const zone=document.getElementById(zoneId);
+  const inp=document.getElementById(inputId);
+  zone.onclick=()=>inp.click();
+  zone.ondragover=e=>{e.preventDefault();zone.classList.add('drag');};
+  zone.ondragleave=()=>zone.classList.remove('drag');
+  zone.ondrop=e=>{e.preventDefault();zone.classList.remove('drag');Array.from(e.dataTransfer.files).forEach(f=>readFile(f,isBaseline));};
+  inp.onchange=e=>Array.from(e.target.files).forEach(f=>readFile(f,isBaseline));
+}
+wireUpload('upzone','fi',false,false);
+wireUpload('blzone','bli',true,true);
+
+function readFile(f,isBaseline){
+  const r=new FileReader();
+  r.onload=ev=>{
+    if(isBaseline){
+      const d=parseCSV(ev.target.result);
+      mergeBaseline(computeBaselineStats(d));
+      baselineFiles.push(f.name);
+      renderBaselineList();
+    } else processText(ev.target.result,f.name);
+  };
+  r.readAsText(f);
+}
+
+function renderBaselineList(){
+  const bl=document.getElementById('bllist');
+  bl.innerHTML=baselineFiles.map((n,i)=>`<div class="bfile">${n}<span onclick="removeBaseline(${i})">✕</span></div>`).join('');
+  document.getElementById('blcount').textContent=baselineFiles.length+' loaded';
+}
+function removeBaseline(i){baselineFiles.splice(i,1);baselineStats={};renderBaselineList();}
+
+/* ── Detection engine ───────────────────────────────────── */
+function detectAnomalies(){
+  const sigma=parseFloat(document.getElementById('sigma').value)||2.5;
+  const win=parseInt(document.getElementById('wsize').value)||5;
+  const flatThr=parseFloat(document.getElementById('flat').value)||0.01;
+  const activeTags=Array.from(document.querySelectorAll('.tag.on:not([data-tag="all"])')).map(t=>t.dataset.tag);
+  const numTags=data.headers.filter(h=>h.toLowerCase()!=='timestamp');
+  const detected=[];
+
+  numTags.forEach(tag=>{
+    if(activeTags.length&&!activeTags.includes(tag))return;
+    const tsCol=data.headers[0];
+    const vals=data.rows.map((r,i)=>({v:parseFloat(r[tag]),i,ts:r[tsCol]})).filter(d=>!isNaN(d.v));
+    if(vals.length<5)return;
+    const vs=vals.map(d=>d.v);
+    const bl=baselineStats[tag];
+    const m=bl?bl.m:mean(vs);
+    const s=bl?bl.s:std(vs);
+    const usingBaseline=!!bl;
+
+    vals.forEach(d=>{
+      const z=Math.abs(d.v-m)/(s||1);
+      if(z>sigma)detected.push({tag,type:'stat_outlier',severity:z>sigma*1.6?'critical':'warning',index:d.i,ts:d.ts,value:d.v,mean:m,std:s,zscore:z,usingBaseline});
+    });
+
+    for(let i=1;i<vals.length-1;i++){
+      const delta=Math.abs(vals[i].v-vals[i-1].v);
+      if(delta>s*sigma*0.8&&delta>Math.abs((vals[i+1]?.v||vals[i].v)-vals[i].v)*0.5){
+        const dup=detected.some(a=>a.tag===tag&&Math.abs(a.index-vals[i].i)<2&&a.type==='spike');
+        if(!dup)detected.push({tag,type:'spike',severity:delta>s*sigma*1.3?'critical':'warning',index:vals[i].i,ts:vals[i].ts,value:vals[i].v,mean:m,std:s,zscore:delta/s,usingBaseline});
+      }
+    }
+
+    for(let i=0;i<vals.length-win;i++){
+      const seg=vals.slice(i,i+win).map(d=>d.v);
+      const ss=std(seg);
+      if(ss<flatThr&&m>0.5){
+        const dup=detected.some(a=>a.tag===tag&&a.type==='flatline'&&Math.abs(a.index-vals[i].i)<win*2);
+        if(!dup)detected.push({tag,type:'flatline',severity:'info',index:vals[i].i,ts:vals[i].ts,value:seg[0],mean:m,std:ss,zscore:0,usingBaseline});
+        break;
+      }
+    }
+
+    const crs=customRules.filter(r=>r.tag&&tag.toLowerCase().includes(r.tag.toLowerCase()));
+    crs.forEach(rule=>{
+      vals.forEach(d=>{
+        if(rule.hi&&d.v>parseFloat(rule.hi)){
+          const dup=detected.some(a=>a.tag===tag&&a.type==='custom_hi'&&Math.abs(a.index-d.i)<2);
+          if(!dup)detected.push({tag,type:'custom_hi',severity:'critical',index:d.i,ts:d.ts,value:d.v,mean:m,std:s,zscore:(d.v-m)/(s||1),usingBaseline,rule});
+        }
+        if(rule.lo&&d.v<parseFloat(rule.lo)){
+          const dup=detected.some(a=>a.tag===tag&&a.type==='custom_lo'&&Math.abs(a.index-d.i)<2);
+          if(!dup)detected.push({tag,type:'custom_lo',severity:'warning',index:d.i,ts:d.ts,value:d.v,mean:m,std:s,zscore:(m-d.v)/(s||1),usingBaseline,rule});
+        }
+      });
+    });
+  });
+
+  return detected.sort((a,b)=>(b.severity==='critical'?1:0)-(a.severity==='critical'?1:0)||b.zscore-a.zscore);
+}
+
+/* ── Alarm correlator ───────────────────────────────────── */
+function correlateAnomalies(anoms){
+  const cwin=parseInt(document.getElementById('corrwin').value)||3;
+  const groups=[];const used=new Set();
+  anoms.forEach((a,i)=>{
+    if(used.has(i))return;
+    const nearby=anoms.filter((b,j)=>j!==i&&!used.has(j)&&b.tag!==a.tag&&Math.abs(b.index-a.index)<=cwin);
+    if(nearby.length>0){
+      const group=[a,...nearby];
+      group.forEach(x=>{const idx=anoms.indexOf(x);if(idx>=0)used.add(idx);});
+      groups.push(group);
+    }
+  });
+  return groups;
+}
+
+function describeCorrelation(group){
+  const tags=group.map(a=>getCat(a.tag));
+  const has=cat=>tags.includes(cat);
+  if(has('temperature')&&has('flow')&&has('pressure'))return'Simultaneous temperature rise, flow reduction, and pressure change — pattern consistent with cooling circuit failure or pump trip event. The thermal excursion is likely a downstream consequence of flow loss.';
+  if(has('temperature')&&has('vibration'))return'Co-occurring temperature and vibration anomalies suggest mechanical friction from bearing degradation or cavitation, both of which generate heat and vibration simultaneously.';
+  if(has('flow')&&has('pressure'))return'Correlated flow and pressure deviations indicate a hydraulic event — valve actuation, pump performance change, or pipe restriction. Investigate upstream control actions.';
+  if(has('vibration')&&has('power'))return'Vibration and power deviating together points to mechanical overload or rotor imbalance causing increased motor current draw. Check pump hydraulic conditions and motor drive output.';
+  if(has('temperature')&&has('power'))return'Temperature and power anomalies occurring together may indicate increased thermal resistance in the process or motor winding issues causing higher losses.';
+  return`${group.length} tags flagged within ${document.getElementById('corrwin').value} scan intervals — likely sharing a common root cause event. Review SCADA trend overlays and DCS alarm logs for this time window.`;
+}
+
+/* ── Run & tab switch ───────────────────────────────────── */
+function runAnalysis(){
+  anomalies=detectAnomalies();
+  document.getElementById('acnt').textContent=anomalies.length?` (${anomalies.length})`:'';
+  document.getElementById('emptyState').style.display='none';
+  document.getElementById('dyn').style.display='block';
+  renderCurrentTab();
+}
+
+function st(tab){
+  currentTab=tab;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.tab===tab));
+  if(data&&document.getElementById('dyn').style.display!=='none')renderCurrentTab();
+}
+
+function renderCurrentTab(){
+  charts.forEach(c=>c.destroy());charts=[];
+  const el=document.getElementById('dyn');
+  if(currentTab==='overview')renderOverview(el);
+  else if(currentTab==='anomalies')renderAnomalies(el);
+  else if(currentTab==='correlate')renderCorrelate(el);
+  else if(currentTab==='trends')renderTrends(el);
+  else if(currentTab==='rules')renderRules(el);
+  else if(currentTab==='summary')renderSummary(el);
+}
+
+/* ── Tab renderers ──────────────────────────────────────── */
+function renderOverview(el){
+  const numTags=data.headers.filter(h=>h.toLowerCase()!=='timestamp');
+  const critical=anomalies.filter(a=>a.severity==='critical').length;
+  const warns=anomalies.filter(a=>a.severity==='warning').length;
+  const health=Math.max(0,100-critical*15-warns*5);
+  const hcls=health<60?'d':health<80?'w':'ok';
+  const corrGroups=correlateAnomalies(anomalies);
+  const blActive=Object.keys(baselineStats).length>0;
+
+  el.innerHTML=`
+    <div class="mrow">
+      <div class="mc ok"><div class="mv ok">${data.rows.length}</div><div class="ml">RECORDS</div></div>
+      <div class="mc ok"><div class="mv">${numTags.length}</div><div class="ml">PROCESS TAGS</div></div>
+      <div class="mc ${critical>0?'d':'ok'}"><div class="mv ${critical>0?'d':'ok'}">${anomalies.length}</div><div class="ml">ANOMALIES</div></div>
+      <div class="mc ${hcls}"><div class="mv ${hcls}">${Math.round(health)}%</div><div class="ml">SYSTEM HEALTH</div></div>
+    </div>
+    <div class="mrow" style="grid-template-columns:repeat(3,1fr)">
+      <div class="mc pu"><div class="mv pu">${corrGroups.length}</div><div class="ml">CORR. EVENTS</div></div>
+      <div class="mc ${blActive?'pu':'ok'}"><div class="mv ${blActive?'pu':'ok'}">${baselineFiles.length}</div><div class="ml">BASELINE FILES</div></div>
+      <div class="mc ok"><div class="mv ok">${customRules.length}</div><div class="ml">CUSTOM RULES</div></div>
+    </div>
+    <div class="cwrap">
+      <div class="ctitle">TAG STATISTICAL SUMMARY ${blActive?'<span style="color:var(--sp)">[BASELINE ACTIVE]</span>':''}</div>
+      <div style="position:relative;height:210px"><canvas id="oc" role="img" aria-label="Bar chart of mean and standard deviation per process tag">Tag means and standard deviations.</canvas></div>
+    </div>
+    <div class="cwrap">
+      <div class="ctitle">ANOMALY COUNT BY TAG</div>
+      <div style="position:relative;height:170px"><canvas id="ac" role="img" aria-label="Bar chart of anomaly count per tag">Anomaly distribution across tags.</canvas></div>
+    </div>`;
+
+  const stats=numTags.map(tag=>{
+    const vs=data.rows.map(r=>parseFloat(r[tag])).filter(v=>!isNaN(v));
+    const bl=baselineStats[tag];
+    return{tag:tag.split('_')[0],m:parseFloat((bl?bl.m:mean(vs)).toFixed(2)),s:parseFloat((bl?bl.s:std(vs)).toFixed(2))};
+  });
+  const scaleOpts={x:{ticks:{color:'#5a7a8a',font:{size:10}}},y:{ticks:{color:'#5a7a8a',font:{size:10}}}};
+  charts.push(new Chart(document.getElementById('oc'),{type:'bar',data:{labels:stats.map(t=>t.tag),datasets:[{label:'Mean',data:stats.map(t=>t.m),backgroundColor:'rgba(0,170,255,0.5)',borderColor:'#00aaff',borderWidth:1},{label:'Std Dev',data:stats.map(t=>t.s),backgroundColor:'rgba(255,170,0,0.42)',borderColor:'#ffaa00',borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#8aabb8',font:{size:10}}}},scales:scaleOpts}}));
+  const tcnt={};numTags.forEach(t=>tcnt[t.split('_')[0]]=0);
+  anomalies.forEach(a=>{const k=a.tag.split('_')[0];if(k in tcnt)tcnt[k]++;});
+  charts.push(new Chart(document.getElementById('ac'),{type:'bar',data:{labels:Object.keys(tcnt),datasets:[{label:'Anomalies',data:Object.values(tcnt),backgroundColor:Object.values(tcnt).map(v=>v>3?'rgba(255,51,68,0.58)':v>1?'rgba(255,170,0,0.52)':'rgba(0,255,136,0.28)'),borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:scaleOpts}}));
+}
+
+function renderAnomalies(el){
+  if(!anomalies.length){el.innerHTML='<div class="empty"><div class="emico">✓</div><p>No anomalies detected at current thresholds</p></div>';return;}
+  el.innerHTML='<div class="alist">'+anomalies.slice(0,25).map(a=>{
+    const typeLabel=a.type==='stat_outlier'?'Statistical Outlier':a.type==='flatline'?'Flat-line / Stuck Signal':a.type==='spike'?'Sudden Spike':a.type==='custom_hi'?'Custom High Limit':'Custom Low Limit';
+    const isCustom=a.type==='custom_hi'||a.type==='custom_lo';
+    const cardCls=a.type==='flatline'?'in':a.severity==='critical'||isCustom&&a.type==='custom_hi'?'cr':a.type==='custom_lo'?'co':'';
+    const badgeCls=a.type==='flatline'?'in':isCustom?'co':a.severity==='critical'?'cr':'wa';
+    const badgeTxt=a.type==='flatline'?'INFO':isCustom?'RULE':a.severity.toUpperCase();
+    const desc=a.type==='flatline'?`Signal frozen at ${a.value.toFixed(2)} (σ within window = ${a.std.toFixed(4)})`:`Value ${a.value.toFixed(2)} deviates ${a.zscore.toFixed(1)}σ from ${a.usingBaseline?'baseline':'local'} mean (μ=${a.mean.toFixed(2)}, σ=${a.std.toFixed(2)})`;
+    const blBadge=a.usingBaseline?`<span style="font-family:var(--mono);font-size:10px;color:var(--sp);margin-left:6px">[baseline]</span>`:'';
+    return`<div class="acard ${cardCls}">
+      <div class="ahead"><div class="atitle">${a.tag.replace(/_/g,' ')}: ${typeLabel}${blBadge}</div><span class="sbadge ${badgeCls}">${badgeTxt}</span></div>
+      <div class="ameta">⌚ ${a.ts||'Row '+a.index} &nbsp;|&nbsp; Row ${a.index}</div>
+      <div class="adesc">${desc}</div>
+      <div class="aicause"><div class="ailbl">⬡ AGENT ANALYSIS</div><div class="aitext">${explain(a)}</div></div>
+    </div>`;
+  }).join('')+'</div>';
+}
+
+function renderCorrelate(el){
+  const groups=correlateAnomalies(anomalies);
+  if(!groups.length){el.innerHTML='<div class="empty"><div class="emico">◎</div><p>No correlated anomaly groups found — tags appear independent</p></div>';return;}
+  el.innerHTML=`<div class="cwrap"><div class="ctitle">CORRELATED EVENT GROUPS</div><div style="position:relative;height:180px"><canvas id="corrChart" role="img" aria-label="Bar chart showing size of each correlated anomaly group">Correlated event group sizes.</canvas></div></div>`
+    +groups.map((g,i)=>`<div class="corr-group">
+      <div class="corr-group-title">Event group ${i+1} — ${g.length} tags &nbsp; <span style="font-weight:400;color:rgba(200,216,232,0.4);font-size:11px">~${g[0].ts||'Row '+g[0].index}</span></div>
+      <div class="corr-tags">${g.map(a=>`<span class="corr-tag">${a.tag.replace(/_/g,' ')}</span>`).join('')}</div>
+      <div class="corr-desc">${describeCorrelation(g)}</div>
+    </div>`).join('');
+  charts.push(new Chart(document.getElementById('corrChart'),{type:'bar',data:{labels:groups.map((_,i)=>'Group '+(i+1)),datasets:[{label:'Anomalies in group',data:groups.map(g=>g.length),backgroundColor:'rgba(187,136,255,0.45)',borderColor:'#bb88ff',borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#5a7a8a',font:{size:10}}},y:{ticks:{color:'#5a7a8a',stepSize:1,font:{size:10}}}}}}));
+}
+
+function renderTrends(el){
+  const numTags=data.headers.filter(h=>h.toLowerCase()!=='timestamp');
+  const tsCol=data.headers[0];
+  const labels=data.rows.map((r,i)=>r[tsCol]?r[tsCol].slice(11,16):'pt'+i);
+  const colors=['#00aaff','#ffaa00','#00ff88','#ff3344','#bb88ff'];
+  const sigma=parseFloat(document.getElementById('sigma').value)||2.5;
+  el.innerHTML=numTags.map((tag,ti)=>`<div class="cwrap"><div class="ctitle">${tag.replace(/_/g,' ')}${baselineStats[tag]?'<span style="color:var(--sp);margin-left:8px">[baseline]</span>':''}</div><div style="position:relative;height:150px"><canvas id="tc${ti}" role="img" aria-label="Time-series trend chart for ${tag}">Trend data for ${tag}.</canvas></div></div>`).join('');
+  numTags.forEach((tag,ti)=>{
+    const vs=data.rows.map(r=>parseFloat(r[tag]));
+    const valid=vs.filter(v=>!isNaN(v));
+    const bl=baselineStats[tag];
+    const m=bl?bl.m:mean(valid);
+    const s=bl?bl.s:std(valid);
+    const col=colors[ti%colors.length];
+    const cr=customRules.find(r=>r.tag&&tag.toLowerCase().includes(r.tag.toLowerCase()));
+    const datasets=[
+      {label:tag,data:vs,borderColor:col,backgroundColor:'transparent',borderWidth:1.5,pointRadius:vs.map(v=>!isNaN(v)&&Math.abs(v-m)/s>sigma?4:0),pointBackgroundColor:'#ff3344',tension:0.2},
+      {label:'Upper σ',data:vs.map(()=>parseFloat((m+sigma*s).toFixed(2))),borderColor:'rgba(255,51,68,0.28)',borderDash:[4,3],pointRadius:0,borderWidth:1},
+      {label:'Lower σ',data:vs.map(()=>parseFloat((m-sigma*s).toFixed(2))),borderColor:'rgba(255,51,68,0.28)',borderDash:[4,3],pointRadius:0,borderWidth:1}
+    ];
+    if(cr&&cr.hi)datasets.push({label:'Hi limit',data:vs.map(()=>parseFloat(cr.hi)),borderColor:'rgba(255,170,0,0.5)',borderDash:[2,4],pointRadius:0,borderWidth:1});
+    if(cr&&cr.lo)datasets.push({label:'Lo limit',data:vs.map(()=>parseFloat(cr.lo)),borderColor:'rgba(0,170,255,0.4)',borderDash:[2,4],pointRadius:0,borderWidth:1});
+    charts.push(new Chart(document.getElementById('tc'+ti),{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#5a7a8a',maxTicksLimit:10,autoSkip:true,font:{size:10}}},y:{ticks:{color:'#5a7a8a',font:{size:10}}}}}}));
+  });
+}
+
+function renderRules(el){
+  el.innerHTML=`<div class="hint">Define custom operating limits per tag. The agent flags violations in the anomaly list and overlays limit lines on the trends chart.</div><div id="rulesList">${renderRuleCards()}</div><button class="addrule" onclick="addRule()">+ Add custom rule</button>`;
+}
+function renderRuleCards(){
+  if(!customRules.length)return`<div style="font-family:var(--mono);font-size:11px;color:rgba(200,216,232,0.28);margin-bottom:12px">No custom rules defined yet.</div>`;
+  return customRules.map((r,i)=>`<div class="crule">
+    <div class="crule-head"><div class="crule-title">Rule ${i+1}: ${r.tag||'(untitled)'}</div><button class="delbtn" onclick="deleteRule(${i})">✕ Remove</button></div>
+    <div class="crule-grid">
+      <div><div class="cinp-lbl">TAG PATTERN</div><input class="cinp" value="${r.tag||''}" onchange="updateRule(${i},'tag',this.value)" placeholder="e.g. Temperature"></div>
+      <div><div class="cinp-lbl">HIGH LIMIT</div><input class="cinp" type="number" value="${r.hi||''}" onchange="updateRule(${i},'hi',this.value)" placeholder="e.g. 110"></div>
+      <div><div class="cinp-lbl">LOW LIMIT</div><input class="cinp" type="number" value="${r.lo||''}" onchange="updateRule(${i},'lo',this.value)" placeholder="e.g. 60"></div>
+      <div><div class="cinp-lbl">CUSTOM MESSAGE</div><input class="cinp" value="${r.msg||''}" onchange="updateRule(${i},'msg',this.value)" placeholder="Optional diagnosis text"></div>
+    </div>
+  </div>`).join('');
+}
+function addRule(){customRules.push({tag:'',hi:'',lo:'',msg:''});if(currentTab==='rules')document.getElementById('rulesList').innerHTML=renderRuleCards();}
+function deleteRule(i){customRules.splice(i,1);document.getElementById('rulesList').innerHTML=renderRuleCards();}
+function updateRule(i,k,v){customRules[i][k]=v;}
+
+function renderSummary(el){
+  const numTags=data.headers.filter(h=>h.toLowerCase()!=='timestamp');
+  const critical=anomalies.filter(a=>a.severity==='critical');
+  const warns=anomalies.filter(a=>a.severity==='warning');
+  const flats=anomalies.filter(a=>a.type==='flatline');
+  const corrGroups=correlateAnomalies(anomalies);
+  const affected=[...new Set(anomalies.map(a=>a.tag))];
+  const health=Math.max(0,100-critical.length*15-warns.length*5);
+  const blActive=Object.keys(baselineStats).length>0;
+
+  const narrative=anomalies.length===0
+    ?`Historian analysis of ${data.rows.length} records across ${numTags.length} tags found no anomalies. All tags are within normal bounds. Continue routine monitoring.`
+    :`Analysis of ${data.rows.length} historian records across ${numTags.length} tags (${blActive?`using ${baselineFiles.length}-file learned baseline`:'using local statistics'}) identified ${anomalies.length} anomalous events across ${affected.length} tag(s). ${critical.length>0?`${critical.length} critical event(s) require immediate attention — most significant: ${getCat(critical[0].tag)} ${critical[0].type.replace(/_/g,' ')} at ${critical[0].ts||'row '+critical[0].index}.`:''} ${corrGroups.length>0?`Alarm correlation identified ${corrGroups.length} co-occurring event group(s), suggesting ${corrGroups.length===1?'a single root-cause event':'multiple root-cause events'} propagating across tags.`:''} ${flats.length>0?`${flats.length} flat-line signal(s) indicate potential instrument health issues requiring field verification.`:''} System health index: ${Math.round(health)}% — ${health<60?'immediate corrective action required':health<80?'maintenance scheduling recommended':'operation may continue with monitoring'}.`;
+
+  const actions=[];
+  critical.forEach(a=>actions.push({tag:a.tag.replace(/_/g,' '),issue:explain(a).slice(0,90)+'…',pr:'p1'}));
+  warns.slice(0,5).forEach(a=>actions.push({tag:a.tag.replace(/_/g,' '),issue:'Statistical outlier — monitor and schedule inspection',pr:'p2'}));
+  flats.forEach(a=>actions.push({tag:a.tag.replace(/_/g,' '),issue:'Flat-line — check sensor, wiring, transmitter output',pr:'p2'}));
+  if(!actions.length)actions.push({tag:'All tags',issue:'No action required — continue routine monitoring',pr:'p3'});
+
+  el.innerHTML=`
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+      <button class="expbtn" onclick="exportReport()">↓ Export report (.txt)</button>
+    </div>
+    <div class="sblock"><h3>Executive Summary</h3><p>${narrative}</p></div>
+    <div class="sblock"><h3>Alarm Correlation Summary</h3><p>${corrGroups.length?corrGroups.map((g,i)=>`Group ${i+1} (${g.length} tags): ${describeCorrelation(g)}`).join(' | '):'No correlated alarm groups detected — anomalies appear to be independent single-tag events.'}</p></div>
+    <div class="sblock"><h3>Maintenance Action Items</h3>
+      <table class="atable">
+        <colgroup><col style="width:70px"><col style="width:130px"><col></colgroup>
+        <thead><tr><th>PRIORITY</th><th>TAG</th><th>RECOMMENDED ACTION</th></tr></thead>
+        <tbody>${actions.slice(0,15).map(a=>`<tr><td><span class="pchip ${a.pr}">${a.pr.toUpperCase()}</span></td><td style="font-family:var(--mono);font-size:10px">${a.tag}</td><td>${a.issue}</td></tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+}
+
+function exportReport(){
+  const numTags=data?data.headers.filter(h=>h.toLowerCase()!=='timestamp'):[];
+  const critical=anomalies.filter(a=>a.severity==='critical');
+  const warns=anomalies.filter(a=>a.severity==='warning');
+  const flats=anomalies.filter(a=>a.type==='flatline');
+  const corrGroups=correlateAnomalies(anomalies);
+  const health=Math.max(0,100-critical.length*15-warns.length*5);
+  const sep='─'.repeat(60);
+  const lines=[
+    'SCADA HISTORIAN ANALYST REPORT — v3',sep,
+    `Generated : ${new Date().toISOString()}`,
+    `Records   : ${data?data.rows.length:0}`,
+    `Tags      : ${numTags.length}`,
+    `Anomalies : ${anomalies.length}  (critical: ${critical.length}, warning: ${warns.length}, flat-line: ${flats.length})`,
+    `Health    : ${Math.round(health)}%`,
+    `Baseline  : ${baselineFiles.length} file(s)`,
+    `Cust rules: ${customRules.length}`,
+    '',sep,'ANOMALY DETAIL',sep,
+    ...anomalies.slice(0,30).map(a=>`[${(a.severity||'info').toUpperCase()}] ${a.tag} | ${a.type} | ${a.ts||'Row '+a.index} | Value: ${a.value.toFixed(3)}\n  → ${explain(a)}`),
+    '',sep,'CORRELATION GROUPS',sep,
+    ...(corrGroups.length?corrGroups.map((g,i)=>`Group ${i+1}: ${g.map(a=>a.tag).join(', ')}\n  → ${describeCorrelation(g)}`):[' None detected']),
+    '',sep,'END OF REPORT'
+  ];
+  const blob=new Blob([lines.join('\n')],{type:'text/plain'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='scada_historian_report.txt';a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
