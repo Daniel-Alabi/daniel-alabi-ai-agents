@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CancelKit — Your Subscription Hit Man</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0b;
+    --bg2: #111114;
+    --bg3: #18181d;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #e8e8e6;
+    --muted: #6b6b72;
+    --accent: #e63946;
+    --accent2: #ff6b6b;
+    --accent-dim: rgba(230,57,70,0.12);
+    --green: #2eb872;
+    --green-dim: rgba(46,184,114,0.1);
+    --amber: #f4a261;
+    --amber-dim: rgba(244,162,97,0.1);
+    --mono: 'Space Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  .app { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+
+  .sidebar {
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow: hidden;
+  }
+  .logo {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .logo-mark {
+    width: 28px; height: 28px;
+    background: var(--accent);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .logo-text { font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 0.05em; }
+  .logo-text span { color: var(--muted); font-weight: 400; }
+
+  .nav { padding: 16px 12px; flex: 1; }
+  .nav-section { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 0 8px; margin: 0 0 6px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-bottom: 2px;
+    user-select: none;
+  }
+  .nav-item:hover { background: var(--bg3); color: var(--text); }
+  .nav-item.active { background: var(--accent-dim); color: var(--accent2); }
+  .nav-item svg { width: 15px; height: 15px; flex-shrink: 0; }
+  .nav-badge {
+    margin-left: auto;
+    background: var(--accent);
+    color: #fff;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 99px;
+  }
+  .nav-sep { height: 1px; background: var(--border); margin: 12px 8px; }
+  .sidebar-footer {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .sidebar-footer strong { color: var(--green); font-family: var(--mono); }
+
+  .main { overflow-y: auto; }
+  .page { display: none; animation: fadeIn 0.2s ease; }
+  .page.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+  .page-header {
+    padding: 32px 36px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .page-eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .page-title { font-size: 24px; font-weight: 500; line-height: 1.2; }
+  .page-desc { font-size: 14px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: var(--sans);
+    cursor: pointer;
+    transition: all 0.15s;
+    border: none;
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #cc2d38; }
+  .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border2); }
+  .btn-ghost:hover { background: var(--bg3); color: var(--text); }
+  .btn-danger { background: var(--accent-dim); color: var(--accent2); border: 1px solid rgba(230,57,70,0.2); }
+  .btn-danger:hover { background: rgba(230,57,70,0.2); }
+  .btn-success { background: var(--green-dim); color: var(--green); border: 1px solid rgba(46,184,114,0.2); }
+
+  .content { padding: 28px 36px; }
+
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
+  .stat-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+  .stat-label { font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .stat-value { font-family: var(--mono); font-size: 26px; font-weight: 700; line-height: 1; }
+  .stat-value.danger { color: var(--accent2); }
+  .stat-value.success { color: var(--green); }
+  .stat-value.amber { color: var(--amber); }
+  .stat-sub { font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+  .section-title {
+    font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  .sub-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 28px; }
+  .sub-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    display: grid;
+    grid-template-columns: 36px 1fr auto auto;
+    align-items: center;
+    gap: 14px;
+    transition: border-color 0.15s;
+  }
+  .sub-card:hover { border-color: var(--border2); }
+  .sub-card.flagged { border-color: rgba(230,57,70,0.3); background: var(--accent-dim); }
+  .sub-card.cancelled { opacity: 0.45; }
+
+  .sub-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .sub-name { font-size: 14px; font-weight: 500; margin-bottom: 3px; }
+  .sub-meta { font-size: 12px; color: var(--muted); }
+  .sub-tags { display: flex; gap: 5px; margin-top: 5px; flex-wrap: wrap; }
+  .tag { font-size: 10px; padding: 2px 7px; border-radius: 99px; font-family: var(--mono); }
+  .tag-red { background: var(--accent-dim); color: var(--accent2); border: 1px solid rgba(230,57,70,0.2); }
+  .tag-amber { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(244,162,97,0.2); }
+  .tag-green { background: var(--green-dim); color: var(--green); border: 1px solid rgba(46,184,114,0.2); }
+  .tag-gray { background: rgba(255,255,255,0.04); color: var(--muted); border: 1px solid var(--border); }
+
+  .sub-amount { font-family: var(--mono); font-size: 15px; font-weight: 700; text-align: right; }
+  .sub-amount .per { font-size: 10px; color: var(--muted); font-weight: 400; }
+  .sub-actions { display: flex; gap: 6px; }
+
+  .alert-banner {
+    background: var(--accent-dim);
+    border: 1px solid rgba(230,57,70,0.25);
+    border-radius: 10px;
+    padding: 14px 18px;
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 20px;
+    font-size: 13px;
+  }
+  .alert-icon { font-size: 18px; flex-shrink: 0; }
+  .alert-text { flex: 1; color: var(--text); line-height: 1.5; }
+  .alert-text strong { color: var(--accent2); }
+
+  .agent-panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 28px;
+  }
+  .agent-header {
+    background: var(--bg3);
+    padding: 12px 18px;
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .agent-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+  .agent-dot.pulse { animation: pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .agent-title { font-family: var(--mono); font-size: 12px; }
+  .agent-status { margin-left: auto; font-size: 11px; color: var(--muted); font-family: var(--mono); }
+
+  .agent-log {
+    padding: 16px 18px;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.8;
+    min-height: 120px;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+  .log-line { display: flex; gap: 10px; }
+  .log-time { color: var(--muted); flex-shrink: 0; }
+  .log-msg.ok { color: var(--green); }
+  .log-msg.err { color: var(--accent2); }
+  .log-msg.info { color: var(--text); }
+  .log-msg.warn { color: var(--amber); }
+  .log-cursor { display: inline-block; width: 8px; height: 14px; background: var(--accent); vertical-align: middle; animation: blink 1s step-end infinite; }
+  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+
+  .agent-footer {
+    padding: 12px 18px;
+    border-top: 1px solid var(--border);
+    display: flex; gap: 10px; align-items: center;
+  }
+  .agent-input {
+    flex: 1;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+    outline: none;
+  }
+  .agent-input:focus { border-color: var(--accent); }
+  .agent-input::placeholder { color: var(--muted); }
+
+  .timeline { display: flex; flex-direction: column; gap: 0; margin-bottom: 28px; }
+  .timeline-item {
+    display: grid;
+    grid-template-columns: 100px 1fr auto;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .timeline-item:last-child { border-bottom: none; }
+  .timeline-date { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .timeline-date.soon { color: var(--amber); }
+  .timeline-date.urgent { color: var(--accent); font-weight: 700; }
+  .timeline-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; width: 100%; max-width: 180px; }
+  .timeline-fill { height: 100%; border-radius: 2px; background: var(--muted); }
+  .timeline-fill.soon { background: var(--amber); }
+  .timeline-fill.urgent { background: var(--accent); }
+
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: 14px;
+    width: 520px;
+    max-width: 90vw;
+    overflow: hidden;
+    transform: translateY(8px);
+    transition: transform 0.2s;
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+  .modal-header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .modal-title { font-size: 16px; font-weight: 500; }
+  .modal-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 20px; line-height: 1; }
+  .modal-close:hover { color: var(--text); }
+  .modal-body { padding: 20px 24px; }
+  .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+
+  .modal-steps { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+  .modal-step {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+  }
+  .step-num {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 10px;
+    flex-shrink: 0;
+  }
+  .step-num.done { background: var(--green-dim); border-color: rgba(46,184,114,0.3); color: var(--green); }
+  .step-num.active { background: var(--accent-dim); border-color: rgba(230,57,70,0.3); color: var(--accent2); }
+  .step-name { font-size: 13px; font-weight: 500; margin-bottom: 3px; }
+  .step-detail { font-size: 12px; color: var(--muted); }
+
+  .dark-pattern-warning {
+    background: rgba(244,162,97,0.08);
+    border: 1px solid rgba(244,162,97,0.2);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 12px;
+    color: var(--amber);
+    line-height: 1.6;
+    margin-bottom: 16px;
+  }
+
+  .progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin: 8px 0 16px; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.5s ease; }
+
+  .detect-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  .detect-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .detect-card:hover { border-color: var(--border2); background: var(--bg2); }
+  .detect-card.selected { border-color: var(--accent); background: var(--accent-dim); }
+  .detect-card-icon { font-size: 24px; margin-bottom: 8px; }
+  .detect-card-name { font-size: 13px; font-weight: 500; }
+  .detect-card-desc { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .cancelled-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--green); font-family: var(--mono); }
+
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+    z-index: 200;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.25s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.success { border-color: rgba(46,184,114,0.3); color: var(--green); }
+  .toast.error { border-color: rgba(230,57,70,0.3); color: var(--accent2); }
+
+  .scan-anim { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 12px; color: var(--muted); padding: 12px 0; }
+  .scan-spinner { width: 14px; height: 14px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .check-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 0;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+  }
+  .check-row:last-child { border-bottom: none; }
+  .check-box {
+    width: 16px; height: 16px;
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg3);
+  }
+  .check-box.checked { background: var(--accent); border-color: var(--accent); }
+  .check-box.checked::after { content: '✓'; color: white; font-size: 10px; }
+  .check-label { flex: 1; }
+  .check-amount { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-mark">✕</div>
+      <div class="logo-text">Cancel<span>Kit</span></div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">Main</div>
+      <div class="nav-item active" onclick="navigate('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </div>
+      <div class="nav-item" onclick="navigate('subscriptions')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        Subscriptions
+        <span class="nav-badge">14</span>
+      </div>
+      <div class="nav-item" onclick="navigate('radar')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+        Renewal Radar
+      </div>
+      <div class="nav-item" onclick="navigate('agent')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        AI Agent
+      </div>
+      <div class="nav-sep"></div>
+      <div class="nav-section">Tools</div>
+      <div class="nav-item" onclick="navigate('detect')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        Detect Subs
+      </div>
+      <div class="nav-item" onclick="showFTC()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        FTC Complaint
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      Saved this month<br>
+      <strong>$143.82</strong> recovered
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <!-- Dashboard -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <div>
+          <div class="page-eyebrow">Overview</div>
+          <div class="page-title">Your subscription siege</div>
+          <div class="page-desc">14 active subscriptions detected · 3 flagged for immediate action</div>
+        </div>
+        <button class="btn btn-primary" onclick="navigate('detect')">Scan for more</button>
+      </div>
+      <div class="content">
+        <div class="alert-banner">
+          <span class="alert-icon">⚠️</span>
+          <div class="alert-text">
+            <strong>2 renewals in the next 72 hours.</strong> Planet Fitness ($29.99) renews Friday. Adobe Creative Cloud ($59.99) renews Saturday.
+          </div>
+          <button class="btn btn-danger" onclick="navigate('radar')">View radar</button>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-card">
+            <div class="stat-label">Monthly burn</div>
+            <div class="stat-value danger">$347</div>
+            <div class="stat-sub">↑ 18% vs 3 months ago</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Unused subs</div>
+            <div class="stat-value amber">6</div>
+            <div class="stat-sub">Not used in 30+ days</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Cancelled</div>
+            <div class="stat-value success">3</div>
+            <div class="stat-sub">$143.82 recovered</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Dark patterns</div>
+            <div class="stat-value danger">4</div>
+            <div class="stat-sub">Hard-cancel services</div>
+          </div>
+        </div>
+
+        <div class="section-title">Flagged for action</div>
+        <div class="sub-list">
+          <div class="sub-card flagged" id="sub-planet">
+            <div class="sub-icon" style="background:rgba(230,57,70,0.15)">🏋️</div>
+            <div class="sub-info">
+              <div class="sub-name">Planet Fitness</div>
+              <div class="sub-meta">Renews Friday · Requires certified letter or in-person visit</div>
+              <div class="sub-tags">
+                <span class="tag tag-red">renews in 2 days</span>
+                <span class="tag tag-red">dark pattern</span>
+                <span class="tag tag-amber">unused 45 days</span>
+              </div>
+            </div>
+            <div class="sub-amount">$29.99<div class="per">/mo</div></div>
+            <div class="sub-actions">
+              <button class="btn btn-danger" onclick="openCancelModal('Planet Fitness','letter',29.99,'sub-planet')">Cancel</button>
+            </div>
+          </div>
+          <div class="sub-card flagged" id="sub-adobe">
+            <div class="sub-icon" style="background:rgba(230,57,70,0.1)">🅰️</div>
+            <div class="sub-info">
+              <div class="sub-name">Adobe Creative Cloud</div>
+              <div class="sub-meta">Renews Saturday · Early termination fee may apply</div>
+              <div class="sub-tags">
+                <span class="tag tag-red">renews in 3 days</span>
+                <span class="tag tag-red">early termination</span>
+                <span class="tag tag-red">FTC complaint filed</span>
+              </div>
+            </div>
+            <div class="sub-amount">$59.99<div class="per">/mo</div></div>
+            <div class="sub-actions">
+              <button class="btn btn-danger" onclick="openCancelModal('Adobe Creative Cloud','web',59.99,'sub-adobe')">Cancel</button>
+            </div>
+          </div>
+          <div class="sub-card flagged" id="sub-sirius">
+            <div class="sub-icon" style="background:rgba(230,57,70,0.1)">📻</div>
+            <div class="sub-info">
+              <div class="sub-name">SiriusXM</div>
+              <div class="sub-meta">Call-only cancellation · Avg hold time 34 min</div>
+              <div class="sub-tags">
+                <span class="tag tag-red">call only</span>
+                <span class="tag tag-amber">unused 60+ days</span>
+              </div>
+            </div>
+            <div class="sub-amount">$22.00<div class="per">/mo</div></div>
+            <div class="sub-actions">
+              <button class="btn btn-danger" onclick="openCancelModal('SiriusXM','phone',22.00,'sub-sirius')">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title">All subscriptions</div>
+        <div class="sub-list">
+          <div class="sub-card">
+            <div class="sub-icon" style="background:#1a1a2e">🎵</div>
+            <div class="sub-info">
+              <div class="sub-name">Spotify Premium</div>
+              <div class="sub-meta">Renews Jun 15 · Used regularly</div>
+              <div class="sub-tags"><span class="tag tag-green">active use</span></div>
+            </div>
+            <div class="sub-amount">$11.99<div class="per">/mo</div></div>
+            <div class="sub-actions">
+              <button class="btn btn-ghost" onclick="openCancelModal('Spotify','web',11.99,null)">Cancel</button>
+            </div>
+          </div>
+          <div class="sub-card">
+            <div class="sub-icon" style="background:#0d0d0d">🎬</div>
+            <div class="sub-info">
+              <div class="sub-name">Netflix</div>
+              <div class="sub-meta">Renews Jun 18 · Used 3x this week</div>
+              <div class="sub-tags"><span class="tag tag-green">active use</span></div>
+            </div>
+            <div class="sub-amount">$22.99<div class="per">/mo</div></div>
+            <div class="sub-actions">
+              <button class="btn btn-ghost" onclick="openCancelModal('Netflix','web',22.99,null)">Cancel</button>
+            </div>
+          </div>
+          <div class="sub-card" id="sub-wsj">
+            <div class="sub-icon" style="background:#1a0d00">📰</div>
+            <div class="sub-info">
+              <div class="sub-name">Wall Street Journal</div>
+              <div class="sub-meta">Renews Jun 12 · Last used 3 weeks ago</div>
+              <div class="sub-tags"><span class="tag tag-amber">low usage</span><span class="tag tag-red">dark pattern</span></div>
+            </div>
+            <div class="sub-amount">$38.99<div class="per">/mo</div></div>
+            <div class="sub-actions">
+              <button class="btn btn-danger" onclick="openCancelModal('Wall Street Journal','phone',38.99,'sub-wsj')">Cancel</button>
+            </div>
+          </div>
+          <div class="sub-card cancelled">
+            <div class="sub-icon" style="background:#0a1f0a;opacity:0.5">📺</div>
+            <div class="sub-info">
+              <div class="sub-name">Hulu</div>
+              <div class="sub-meta">Cancelled May 3 by CancelKit Agent</div>
+              <div class="sub-tags"><span class="cancelled-badge">✓ cancelled</span></div>
+            </div>
+            <div class="sub-amount" style="color:var(--muted)">$17.99<div class="per">/mo</div></div>
+            <div class="sub-actions">
+              <span style="font-size:12px;color:var(--green);font-family:var(--mono)">$17.99 saved</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Subscriptions -->
+    <div class="page" id="page-subscriptions">
+      <div class="page-header">
+        <div>
+          <div class="page-eyebrow">All subscriptions</div>
+          <div class="page-title">14 active · $347/mo</div>
+          <div class="page-desc">Select multiple to bulk cancel</div>
+        </div>
+        <button class="btn btn-primary" onclick="doBulkCancel()">Cancel selected</button>
+      </div>
+      <div class="content">
+        <div id="bulk-list"></div>
+      </div>
+    </div>
+
+    <!-- Radar -->
+    <div class="page" id="page-radar">
+      <div class="page-header">
+        <div>
+          <div class="page-eyebrow">Renewal radar</div>
+          <div class="page-title">Upcoming charges</div>
+          <div class="page-desc">Next 30 days · $347 total incoming</div>
+        </div>
+      </div>
+      <div class="content">
+        <div class="alert-banner" style="margin-bottom:24px">
+          <span class="alert-icon">🎯</span>
+          <div class="alert-text">Cancel <strong>Planet Fitness</strong> and <strong>Adobe</strong> before Friday to save <strong>$89.98</strong> this month.</div>
+          <button class="btn btn-danger" onclick="openCancelModal('Planet Fitness','letter',29.99,'sub-planet')">Cancel now</button>
+        </div>
+        <div class="section-title">Next 30 days</div>
+        <div class="timeline" id="radar-timeline"></div>
+      </div>
+    </div>
+
+    <!-- Agent -->
+    <div class="page" id="page-agent">
+      <div class="page-header">
+        <div>
+          <div class="page-eyebrow">AI Agent</div>
+          <div class="page-title">CancelKit Agent</div>
+          <div class="page-desc">Automated cancellation execution · All actions logged</div>
+        </div>
+      </div>
+      <div class="content">
+        <div class="section-title">Agent terminal</div>
+        <div class="agent-panel">
+          <div class="agent-header">
+            <div class="agent-dot pulse" id="agent-dot"></div>
+            <div class="agent-title">CANCELKIT_AGENT v2.1</div>
+            <div class="agent-status" id="agent-status-text">IDLE</div>
+          </div>
+          <div class="agent-log" id="agent-log">
+            <div class="log-line"><span class="log-time">09:14:02</span><span class="log-msg ok">Agent initialized. Bank feed and email scanner connected.</span></div>
+            <div class="log-line"><span class="log-time">09:14:03</span><span class="log-msg info">14 active subscriptions loaded. 3 flagged for action.</span></div>
+            <div class="log-line"><span class="log-time">09:14:04</span><span class="log-msg warn">Planet Fitness: CERTIFIED_LETTER required. Drafting...</span></div>
+            <div class="log-line"><span class="log-time">09:14:05</span><span class="log-msg ok">Letter drafted. Awaiting user confirmation to mail.</span></div>
+            <div class="log-line"><span class="log-time">09:14:06</span><span class="log-msg warn">SiriusXM: PHONE_ONLY cancellation. Scheduling call 10:00 AM...</span></div>
+            <div class="log-line"><span class="log-time">09:14:07</span><span class="log-msg info">Adobe: Navigating web cancellation flow...</span></div>
+            <div class="log-line"><span class="log-time">09:14:08</span><span class="log-msg err">Adobe: DARK PATTERN detected — 5 retention screens. Bypassing...</span></div>
+            <div class="log-line"><span class="log-time">09:14:09</span><span class="log-msg warn">Adobe: Early termination fee screen detected. Flagging for review.</span></div>
+            <div class="log-line"><span class="log-time">09:14:10</span><span class="log-msg ok">Hulu: Cancellation confirmed. $17.99/mo saved.</span></div>
+            <div class="log-line"><span class="log-time">09:14:11</span><span class="log-msg info">Ready. <span class="log-cursor"></span></span></div>
+          </div>
+          <div class="agent-footer">
+            <input class="agent-input" id="agent-cmd" placeholder="Try: cancel netflix · cancel spotify · scan email · file ftc complaint" onkeydown="if(event.key==='Enter')runAgentCmd()">
+            <button class="btn btn-primary" onclick="runAgentCmd()">Run</button>
+          </div>
+        </div>
+
+        <div class="section-title">Completed actions</div>
+        <div class="sub-list">
+          <div class="sub-card">
+            <div class="sub-icon" style="background:var(--green-dim)">✓</div>
+            <div class="sub-info">
+              <div class="sub-name">Hulu — Cancelled successfully</div>
+              <div class="sub-meta">May 3, 2026 · 3-screen web flow · Confirmation #HLU-29483</div>
+              <div class="sub-tags"><span class="tag tag-green">confirmed</span><span class="tag tag-gray">email saved</span></div>
+            </div>
+            <div class="sub-amount" style="color:var(--green)">+$17.99<div class="per">/mo saved</div></div>
+            <div class="sub-actions"></div>
+          </div>
+          <div class="sub-card">
+            <div class="sub-icon" style="background:var(--green-dim)">✓</div>
+            <div class="sub-info">
+              <div class="sub-name">Chegg — Cancelled successfully</div>
+              <div class="sub-meta">Apr 28, 2026 · Caught before billing cycle · Confirmation #CHG-10284</div>
+              <div class="sub-tags"><span class="tag tag-green">confirmed</span><span class="tag tag-gray">cycle exploit avoided</span></div>
+            </div>
+            <div class="sub-amount" style="color:var(--green)">+$19.99<div class="per">/mo saved</div></div>
+            <div class="sub-actions"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detect -->
+    <div class="page" id="page-detect">
+      <div class="page-header">
+        <div>
+          <div class="page-eyebrow">Detection</div>
+          <div class="page-title">Find hidden subscriptions</div>
+          <div class="page-desc">Connect accounts to auto-detect every recurring charge</div>
+        </div>
+      </div>
+      <div class="content">
+        <div class="section-title">Connect data sources</div>
+        <div class="detect-grid">
+          <div class="detect-card selected" id="dc-bank" onclick="toggleDetect('dc-bank')">
+            <div class="detect-card-icon">🏦</div>
+            <div class="detect-card-name">Bank / Credit Card</div>
+            <div class="detect-card-desc">Scan transactions for recurring charges</div>
+          </div>
+          <div class="detect-card" id="dc-email" onclick="toggleDetect('dc-email')">
+            <div class="detect-card-icon">📧</div>
+            <div class="detect-card-name">Email (Gmail / Outlook)</div>
+            <div class="detect-card-desc">Find receipts and renewal notices</div>
+          </div>
+          <div class="detect-card" id="dc-apple" onclick="toggleDetect('dc-apple')">
+            <div class="detect-card-icon">🍎</div>
+            <div class="detect-card-name">Apple App Store</div>
+            <div class="detect-card-desc">All iOS in-app subscriptions</div>
+          </div>
+          <div class="detect-card" id="dc-google" onclick="toggleDetect('dc-google')">
+            <div class="detect-card-icon">▶️</div>
+            <div class="detect-card-name">Google Play</div>
+            <div class="detect-card-desc">All Android in-app subscriptions</div>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="scan-btn" onclick="runScan()" style="margin-bottom:24px">Start scan</button>
+        <div id="scan-results" style="display:none">
+          <div class="progress-bar"><div class="progress-fill" id="scan-progress" style="width:0%"></div></div>
+          <div class="scan-anim" id="scan-status"><div class="scan-spinner"></div> Scanning...</div>
+          <div class="sub-list" id="scan-list" style="margin-top:16px"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Cancel Modal -->
+<div class="modal-overlay" id="cancel-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">Cancel subscription</div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer"></div>
+  </div>
+</div>
+
+<!-- FTC Modal -->
+<div class="modal-overlay" id="ftc-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">File FTC complaint</div>
+      <button class="modal-close" onclick="document.getElementById('ftc-modal').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="dark-pattern-warning">
+        ⚖️ Under the FTC's Click-to-Cancel Rule (effective 2025), companies must make cancellation as easy as sign-up. Violations are reportable and carry fines.
+      </div>
+      <div class="check-row" onclick="toggleCheck(this)">
+        <div class="check-box checked"></div>
+        <div class="check-label">Adobe Creative Cloud — early termination fee + 6-screen cancellation maze</div>
+        <div class="check-amount">$59.99/mo</div>
+      </div>
+      <div class="check-row" onclick="toggleCheck(this)">
+        <div class="check-box checked"></div>
+        <div class="check-label">SiriusXM — phone-only cancellation, 34-min hold time</div>
+        <div class="check-amount">$22.00/mo</div>
+      </div>
+      <div class="check-row" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="check-label">Planet Fitness — requires in-person visit or certified mail</div>
+        <div class="check-amount">$29.99/mo</div>
+      </div>
+      <p style="margin-top:16px;font-size:12px;color:var(--muted)">CancelKit packages all transaction records, dark pattern screenshots, and timeline documentation into an FTC complaint and files on your behalf.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="document.getElementById('ftc-modal').classList.remove('open')">Close</button>
+      <button class="btn btn-primary" onclick="fileFTC()">File complaint</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if ((n.getAttribute('onclick') || '').includes("'" + page + "'")) n.classList.add('active');
+  });
+  if (page === 'subscriptions') buildBulkList();
+  if (page === 'radar') buildRadar();
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (type || 'success');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+const subs = [
+  { id: 'sub-planet', name: 'Planet Fitness', icon: '🏋️', amount: 29.99, renewal: '2 days', type: 'letter', tags: [['renews in 2 days','tag-red'],['dark pattern','tag-red'],['unused 45d','tag-amber']], flagged: true },
+  { id: 'sub-adobe', name: 'Adobe Creative Cloud', icon: '🅰️', amount: 59.99, renewal: '3 days', type: 'web', tags: [['renews in 3 days','tag-red'],['FTC filed','tag-red']], flagged: true },
+  { id: 'sub-sirius', name: 'SiriusXM', icon: '📻', amount: 22.00, renewal: '8 days', type: 'phone', tags: [['call only','tag-red'],['unused 60d','tag-amber']], flagged: true },
+  { id: 'sub-wsj', name: 'Wall Street Journal', icon: '📰', amount: 38.99, renewal: '4 days', type: 'phone', tags: [['dark pattern','tag-red'],['low usage','tag-amber']], flagged: false },
+  { id: 'sub-spotify', name: 'Spotify Premium', icon: '🎵', amount: 11.99, renewal: '12 days', type: 'web', tags: [['active use','tag-green']], flagged: false },
+  { id: 'sub-netflix', name: 'Netflix', icon: '🎬', amount: 22.99, renewal: '15 days', type: 'web', tags: [['active use','tag-green']], flagged: false },
+  { id: 'sub-nyt', name: 'NY Times', icon: '📄', amount: 17.00, renewal: '20 days', type: 'web', tags: [['low usage','tag-amber']], flagged: false },
+  { id: 'sub-yt', name: 'YouTube Premium', icon: '▶️', amount: 13.99, renewal: '22 days', type: 'web', tags: [['active use','tag-green']], flagged: false },
+];
+const selected = new Set();
+
+function buildBulkList() {
+  document.getElementById('bulk-list').innerHTML = '<div class="sub-list">' + subs.map(s => `
+    <div class="sub-card ${s.flagged ? 'flagged' : ''}">
+      <div style="display:flex;align-items:center;gap:10px;grid-column:span 4">
+        <div class="check-box ${selected.has(s.id) ? 'checked' : ''}" onclick="toggleSel('${s.id}',this)" style="cursor:pointer;flex-shrink:0"></div>
+        <div class="sub-icon" style="background:rgba(255,255,255,0.04)">${s.icon}</div>
+        <div class="sub-info" style="flex:1">
+          <div class="sub-name">${s.name}</div>
+          <div class="sub-meta">Renews in ${s.renewal}</div>
+          <div class="sub-tags">${s.tags.map(([l,c])=>`<span class="tag ${c}">${l}</span>`).join('')}</div>
+        </div>
+        <div class="sub-amount">$${s.amount.toFixed(2)}<div class="per">/mo</div></div>
+        <button class="btn btn-danger" onclick="openCancelModal('${s.name}','${s.type}',${s.amount},'${s.id}')">Cancel</button>
+      </div>
+    </div>`).join('') + '</div>';
+}
+
+function toggleSel(id, el) {
+  selected.has(id) ? (selected.delete(id), el.classList.remove('checked')) : (selected.add(id), el.classList.add('checked'));
+}
+function doBulkCancel() {
+  if (!selected.size) { showToast('Select at least one subscription', 'error'); return; }
+  showToast('Cancelling ' + selected.size + ' subscription' + (selected.size > 1 ? 's' : '') + '...');
+  setTimeout(() => { showToast('All selected subscriptions cancelled!'); selected.clear(); buildBulkList(); }, 2500);
+}
+
+const radarData = [
+  { name: 'Planet Fitness', days: 2, amount: 29.99, u: 'urgent' },
+  { name: 'Adobe Creative Cloud', days: 3, amount: 59.99, u: 'urgent' },
+  { name: 'Wall Street Journal', days: 4, amount: 38.99, u: 'soon' },
+  { name: 'SiriusXM', days: 8, amount: 22.00, u: 'soon' },
+  { name: 'Spotify Premium', days: 12, amount: 11.99, u: '' },
+  { name: 'Netflix', days: 15, amount: 22.99, u: '' },
+  { name: 'NY Times', days: 20, amount: 17.00, u: '' },
+  { name: 'YouTube Premium', days: 22, amount: 13.99, u: '' },
+];
+function buildRadar() {
+  document.getElementById('radar-timeline').innerHTML = radarData.map(r => `
+    <div class="timeline-item">
+      <div class="timeline-date ${r.u}">${r.days<=2?'Friday':r.days<=3?'Saturday':'In '+r.days+' days'}</div>
+      <div>
+        <div style="font-size:13px;font-weight:500;margin-bottom:6px">${r.name}</div>
+        <div class="timeline-bar"><div class="timeline-fill ${r.u}" style="width:${Math.max(5,(30-r.days)/30*100).toFixed(0)}%"></div></div>
+      </div>
+      <div style="font-family:var(--mono);font-size:13px;min-width:70px;text-align:right">$${r.amount.toFixed(2)}</div>
+    </div>`).join('');
+}
+
+let currentTarget = null;
+function openCancelModal(name, type, amount, targetId) {
+  currentTarget = targetId;
+  document.getElementById('modal-title').textContent = 'Cancel: ' + name;
+  const cfgs = {
+    web: {
+      warn: null,
+      steps: [
+        { n:'1', s:'done', name:'Navigate to account settings', detail:'Opening '+name+' cancellation page' },
+        { n:'2', s:'done', name:'Bypass retention screens', detail:'Detected 4 dark pattern screens — skipping' },
+        { n:'3', s:'active', name:'Confirm cancellation', detail:'Awaiting final confirmation' },
+        { n:'4', s:'', name:'Save confirmation email', detail:'Will archive to your records' },
+      ]
+    },
+    phone: {
+      warn: '⚠️ Call-only cancellation. Your agent will handle the full call, including hold time and retention pitches.',
+      steps: [
+        { n:'1', s:'done', name:'Schedule call', detail:'Agent calls '+name+' on your behalf' },
+        { n:'2', s:'active', name:'Navigate IVR + hold', detail:'Avg hold time: 34 min. Agent handles it.' },
+        { n:'3', s:'', name:'Resist retention offers', detail:'Agent declines all retention pitches' },
+        { n:'4', s:'', name:'Record confirmation', detail:'Call transcribed and saved' },
+      ]
+    },
+    letter: {
+      warn: '⚠️ Physical letter required. This may violate the FTC Click-to-Cancel Rule (2025). CancelKit has pre-filed a regulatory notice.',
+      steps: [
+        { n:'1', s:'done', name:'Draft certified letter', detail:'Legal cancellation letter prepared' },
+        { n:'2', s:'done', name:'FTC pre-notification', detail:'Regulator notified of non-compliant process' },
+        { n:'3', s:'active', name:'Send via certified mail', detail:'CancelKit mails on your behalf' },
+        { n:'4', s:'', name:'Track delivery', detail:'USPS tracking saved to account' },
+      ]
+    },
+  };
+  const c = cfgs[type];
+  document.getElementById('modal-body').innerHTML = `
+    ${c.warn ? `<div class="dark-pattern-warning">${c.warn}</div>` : ''}
+    <div style="font-size:13px;color:var(--muted);margin-bottom:14px">Monthly charge: <strong style="color:var(--text);font-family:var(--mono)">$${amount.toFixed(2)}</strong> · Agent will execute automatically</div>
+    <div class="modal-steps">${c.steps.map(s=>`
+      <div class="modal-step">
+        <div class="step-num ${s.s}">${s.s==='done'?'✓':s.s==='active'?'→':s.n}</div>
+        <div><div class="step-name">${s.name}</div><div class="step-detail">${s.detail}</div></div>
+      </div>`).join('')}
+    </div>`;
+  document.getElementById('modal-footer').innerHTML = `
+    <button class="btn btn-ghost" onclick="closeModal()">Not now</button>
+    <button class="btn btn-danger" onclick="execCancel('${name}',${amount})">Execute cancellation →</button>`;
+  document.getElementById('cancel-modal').classList.add('open');
+}
+function closeModal() { document.getElementById('cancel-modal').classList.remove('open'); }
+function execCancel(name, amount) {
+  closeModal();
+  showToast('Agent executing ' + name + ' cancellation...');
+  if (currentTarget) {
+    setTimeout(() => {
+      const el = document.getElementById(currentTarget);
+      if (el) el.classList.add('cancelled');
+      showToast('✓ ' + name + ' cancelled — $' + amount.toFixed(2) + '/mo saved');
+      addLog(name + ': Cancellation executed. $' + amount.toFixed(2) + '/mo recovered.', 'ok');
+    }, 2000);
+  }
+}
+
+function addLog(msg, type) {
+  const log = document.getElementById('agent-log');
+  const t = new Date().toTimeString().slice(0,8);
+  const el = document.createElement('div');
+  el.className = 'log-line';
+  el.innerHTML = `<span class="log-time">${t}</span><span class="log-msg ${type}">${msg}</span>`;
+  log.appendChild(el);
+  log.scrollTop = log.scrollHeight;
+}
+const cmds = {
+  'cancel netflix': [
+    { t:'warn', m:'Navigating Netflix account settings...' },
+    { t:'warn', m:'Retention screen: "Are you sure?" — dismissing...' },
+    { t:'ok', m:'Netflix cancelled. $22.99/mo saved.' },
+  ],
+  'cancel spotify': [
+    { t:'info', m:'Navigating Spotify cancellation flow...' },
+    { t:'ok', m:'Spotify cancelled. $11.99/mo saved.' },
+  ],
+  'scan email': [
+    { t:'info', m:'Scanning Gmail for subscription receipts...' },
+    { t:'ok', m:'Found 3 new subscriptions: Duolingo Plus, Canva Pro, Dropbox' },
+    { t:'warn', m:'Duolingo Plus: Trial ends in 2 days — renews at $6.99/mo' },
+    { t:'ok', m:'Scan complete. Dashboard updated.' },
+  ],
+  'file ftc complaint': [
+    { t:'info', m:'Preparing FTC complaint bundle...' },
+    { t:'info', m:'Compiling: transactions, dark pattern screenshots, timeline...' },
+    { t:'ok', m:'FTC complaint filed for Adobe and SiriusXM.' },
+    { t:'ok', m:'Reference #FTC-2026-08847. Email confirmation pending.' },
+  ],
+};
+function runAgentCmd() {
+  const inp = document.getElementById('agent-cmd');
+  const cmd = inp.value.trim().toLowerCase();
+  if (!cmd) return;
+  addLog('$ ' + cmd, 'info');
+  inp.value = '';
+  const script = cmds[cmd] || [{ t:'warn', m:'Unknown command. Try: cancel netflix · scan email · file ftc complaint' }];
+  document.getElementById('agent-status-text').textContent = 'RUNNING';
+  script.forEach((m, i) => {
+    setTimeout(() => {
+      addLog(m.m, m.t);
+      if (i === script.length - 1) {
+        document.getElementById('agent-status-text').textContent = 'IDLE';
+        addLog('Ready. <span class="log-cursor"></span>', 'info');
+      }
+    }, 700 * (i + 1));
+  });
+}
+
+function toggleDetect(id) { document.getElementById(id).classList.toggle('selected'); }
+function runScan() {
+  document.getElementById('scan-results').style.display = 'block';
+  document.getElementById('scan-btn').disabled = true;
+  document.getElementById('scan-btn').textContent = 'Scanning...';
+  document.getElementById('scan-list').innerHTML = '';
+  const phases = [
+    { p:20, m:'Scanning bank transactions...' },
+    { p:45, m:'Analyzing recurring charges...' },
+    { p:65, m:'Scanning email receipts...' },
+    { p:85, m:'Cross-referencing subscription databases...' },
+    { p:100, m:'Scan complete.' },
+  ];
+  const found = [
+    { name:'Duolingo Plus', icon:'🦜', amount:6.99, note:'Trial expires in 2 days', tag:'tag-red' },
+    { name:'Canva Pro', icon:'🎨', amount:12.99, note:'Billing via Google Play', tag:'tag-amber' },
+    { name:'Dropbox Plus', icon:'📦', amount:11.99, note:'Last used 90+ days ago', tag:'tag-amber' },
+    { name:'Starz', icon:'⭐', amount:8.99, note:'No usage detected', tag:'tag-red' },
+  ];
+  let i = 0;
+  const run = () => {
+    if (i >= phases.length) {
+      document.getElementById('scan-status').style.color = 'var(--green)';
+      document.getElementById('scan-status').innerHTML = '✓ Found ' + found.length + ' new subscriptions';
+      document.getElementById('scan-btn').disabled = false;
+      document.getElementById('scan-btn').textContent = 'Scan again';
+      found.forEach((f, idx) => {
+        setTimeout(() => {
+          const el = document.createElement('div');
+          el.className = 'sub-card';
+          el.innerHTML = `
+            <div class="sub-icon" style="background:rgba(255,255,255,0.04)">${f.icon}</div>
+            <div class="sub-info">
+              <div class="sub-name">${f.name} <span style="font-size:11px;color:var(--green);font-family:var(--mono)">NEW</span></div>
+              <div class="sub-meta">${f.note}</div>
+              <div class="sub-tags"><span class="tag ${f.tag}">${f.tag==='tag-red'?'urgent':'review'}</span></div>
+            </div>
+            <div class="sub-amount">$${f.amount.toFixed(2)}<div class="per">/mo</div></div>
+            <div class="sub-actions"><button class="btn btn-danger" onclick="openCancelModal('${f.name}','web',${f.amount},null)">Cancel</button></div>`;
+          document.getElementById('scan-list').appendChild(el);
+        }, idx * 200);
+      });
+      return;
+    }
+    document.getElementById('scan-progress').style.width = phases[i].p + '%';
+    document.getElementById('scan-status').innerHTML = '<div class="scan-spinner"></div> ' + phases[i].m;
+    i++;
+    setTimeout(run, 850);
+  };
+  run();
+}
+
+function showFTC() { document.getElementById('ftc-modal').classList.add('open'); }
+function toggleCheck(row) { row.querySelector('.check-box').classList.toggle('checked'); }
+function fileFTC() {
+  document.getElementById('ftc-modal').classList.remove('open');
+  showToast('FTC complaint filed. Ref #FTC-2026-08847');
+}
+
+buildRadar();
+</script>
+</body>
+</html>
