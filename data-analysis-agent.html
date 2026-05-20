@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Data Analysis Agent</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.10.0/dist/tabler-icons.min.css" />
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #13161d;
+    --surface2: #1a1e28;
+    --border: #252935;
+    --border2: #2e3448;
+    --text: #e8eaf0;
+    --muted: #7c8299;
+    --hint: #454d66;
+    --accent: #4d8ef0;
+    --accent-dim: rgba(77,142,240,0.12);
+    --accent-border: rgba(77,142,240,0.3);
+    --green: #3ecf8e;
+    --green-dim: rgba(62,207,142,0.1);
+    --amber: #f5a623;
+    --amber-dim: rgba(245,166,35,0.1);
+    --red: #f06565;
+    --red-dim: rgba(240,101,101,0.1);
+    --font: 'IBM Plex Sans', sans-serif;
+    --mono: 'IBM Plex Mono', monospace;
+    --r: 6px;
+    --r-lg: 10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--text);
+    background: var(--bg);
+    min-height: 100vh;
+    display: grid;
+    grid-template-rows: auto 1fr;
+  }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    height: 52px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 12px; }
+  .logo {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, #4d8ef0, #7b5ef8);
+    border-radius: var(--r);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .logo i { color: #fff; font-size: 17px; }
+  .app-title { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
+  .app-sub { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 1px; }
+  .topbar-right { display: flex; align-items: center; gap: 10px; }
+  .api-field {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--r);
+    padding: 5px 10px;
+  }
+  .api-field label { font-size: 11px; color: var(--muted); white-space: nowrap; font-family: var(--mono); }
+  .api-field input {
+    background: none; border: none; outline: none;
+    color: var(--text); font-family: var(--mono); font-size: 12px;
+    width: 220px;
+  }
+  .api-field input::placeholder { color: var(--hint); }
+  .pill {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; font-family: var(--mono);
+    padding: 4px 10px; border-radius: 20px;
+  }
+  .pill.green { background: var(--green-dim); color: var(--green); }
+  .pill.muted { background: var(--surface2); color: var(--muted); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .dot.pulse { animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* ── LAYOUT ── */
+  .main {
+    display: grid;
+    grid-template-columns: 240px 1fr 300px;
+    height: calc(100vh - 52px);
+    overflow: hidden;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    border-right: 1px solid var(--border);
+    padding: 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    background: var(--surface);
+  }
+  .sec-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--hint);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    font-family: var(--mono);
+  }
+
+  .dropzone {
+    border: 1.5px dashed var(--border2);
+    border-radius: var(--r-lg);
+    padding: 20px 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .15s;
+    background: var(--surface2);
+  }
+  .dropzone:hover, .dropzone.over {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+  .dropzone i { font-size: 24px; color: var(--muted); margin-bottom: 6px; display: block; }
+  .dropzone p { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .dropzone span { font-size: 11px; color: var(--hint); font-family: var(--mono); }
+  #file-input { display: none; }
+
+  .file-list { display: flex; flex-direction: column; gap: 5px; }
+  .file-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 9px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+  }
+  .file-item i { font-size: 15px; flex-shrink: 0; }
+  .file-item i.csv { color: var(--accent); }
+  .file-item i.pdf { color: var(--red); }
+  .file-item i.json { color: var(--amber); }
+  .file-name { flex: 1; font-size: 11px; font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-size { font-size: 10px; color: var(--hint); font-family: var(--mono); }
+  .file-rm {
+    background: none; border: none; cursor: pointer;
+    color: var(--hint); font-size: 13px; padding: 0; line-height: 1;
+    transition: color .1s;
+  }
+  .file-rm:hover { color: var(--red); }
+
+  .mode-list { display: flex; flex-direction: column; gap: 4px; }
+  .mode-btn {
+    display: flex; align-items: center; gap: 9px;
+    padding: 8px 10px;
+    border: 1px solid transparent;
+    border-radius: var(--r);
+    background: none;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--muted);
+    font-family: var(--font);
+    transition: all .12s;
+    text-align: left;
+    width: 100%;
+  }
+  .mode-btn i { font-size: 15px; }
+  .mode-btn:hover { background: var(--surface2); color: var(--text); }
+  .mode-btn.active {
+    background: var(--accent-dim);
+    border-color: var(--accent-border);
+    color: var(--accent);
+  }
+
+  .run-btn {
+    width: 100%;
+    padding: 10px;
+    background: linear-gradient(135deg, #4d8ef0, #7b5ef8);
+    color: #fff;
+    border: none;
+    border-radius: var(--r);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--font);
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    transition: opacity .15s;
+    letter-spacing: -0.01em;
+  }
+  .run-btn:hover { opacity: .85; }
+  .run-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* ── CONTENT ── */
+  .content {
+    overflow-y: auto;
+    padding: 18px 20px;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .welcome {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    height: 100%;
+    gap: 14px; text-align: center; padding: 40px;
+  }
+  .welcome-icon {
+    width: 64px; height: 64px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .welcome-icon i { font-size: 30px; color: var(--hint); }
+  .welcome h3 { font-size: 16px; font-weight: 500; }
+  .welcome p { font-size: 13px; color: var(--muted); max-width: 320px; line-height: 1.7; }
+
+  .metric-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 14px;
+  }
+  .m-label { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-bottom: 5px; }
+  .m-value { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
+  .m-delta { font-size: 11px; margin-top: 4px; font-family: var(--mono); }
+  .m-delta.up { color: var(--green); }
+  .m-delta.down { color: var(--red); }
+  .m-delta.neutral { color: var(--muted); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 16px;
+  }
+  .card-header {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .card-title { font-size: 13px; font-weight: 500; }
+  .tag {
+    font-size: 10px; font-family: var(--mono);
+    padding: 3px 8px; border-radius: 4px;
+    font-weight: 500;
+  }
+  .tag-a { background: var(--amber-dim); color: var(--amber); }
+  .tag-t { background: var(--accent-dim); color: var(--accent); }
+  .tag-f { background: var(--green-dim); color: var(--green); }
+  .tag-s { background: var(--surface2); color: var(--muted); }
+  .tag-r { background: var(--red-dim); color: var(--red); }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  .anomaly-list { display: flex; flex-direction: column; gap: 6px; }
+  .aitem {
+    display: flex; align-items: flex-start; gap: 9px;
+    padding: 9px 11px;
+    border-radius: var(--r);
+    font-size: 12px; line-height: 1.5;
+  }
+  .aitem i { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+  .aitem.warn { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245,166,35,.2); }
+  .aitem.danger { background: var(--red-dim); color: var(--red); border: 1px solid rgba(240,101,101,.2); }
+  .aitem.ok { background: var(--green-dim); color: var(--green); border: 1px solid rgba(62,207,142,.2); }
+
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 4px; }
+  .stat-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 9px;
+    background: var(--surface2);
+    border-radius: var(--r);
+    font-size: 12px;
+  }
+  .sk { color: var(--muted); }
+  .sv { font-family: var(--mono); font-weight: 500; }
+
+  .trend-item {
+    display: flex; gap: 9px;
+    padding: 9px 11px;
+    background: var(--surface2);
+    border-radius: var(--r);
+    font-size: 12px; line-height: 1.5;
+    margin-top: 6px;
+  }
+  .trend-item i { font-size: 15px; color: var(--accent); flex-shrink: 0; margin-top: 1px; }
+
+  /* ── INSIGHTS PANEL ── */
+  .insights {
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .ins-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 500;
+  }
+  .ins-header i { color: var(--accent); font-size: 16px; }
+  .ins-scroll {
+    flex: 1; overflow-y: auto;
+    padding: 12px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .imsg {
+    font-size: 12px; line-height: 1.65;
+    padding: 10px 12px;
+    border-radius: var(--r);
+  }
+  .imsg.ai { background: var(--accent-dim); color: #a8c8f8; border: 1px solid var(--accent-border); }
+  .imsg.sys { background: var(--surface2); color: var(--muted); font-style: italic; border: 1px solid var(--border); }
+  .imsg.err { background: var(--red-dim); color: var(--red); border: 1px solid rgba(240,101,101,.2); }
+  .imsg.q { background: var(--surface2); color: var(--text); border: 1px solid var(--border2); font-family: var(--mono); font-size: 11px; }
+
+  .chat-row {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+    display: flex; gap: 7px;
+  }
+  .chat-row input {
+    flex: 1;
+    padding: 8px 11px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--r);
+    color: var(--text);
+    font-family: var(--font); font-size: 12px;
+    outline: none;
+    transition: border-color .15s;
+  }
+  .chat-row input:focus { border-color: var(--accent); }
+  .chat-row input::placeholder { color: var(--hint); }
+  .send-btn {
+    padding: 8px 12px;
+    background: var(--accent);
+    color: #fff; border: none;
+    border-radius: var(--r);
+    cursor: pointer;
+    font-size: 13px;
+    display: flex; align-items: center; gap: 4px;
+    transition: opacity .12s;
+  }
+  .send-btn:hover { opacity: .85; }
+  .send-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* spinners */
+  .spin {
+    width: 13px; height: 13px;
+    border: 2px solid rgba(255,255,255,.25);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .65s linear infinite;
+    display: inline-block;
+  }
+  .spin-dark {
+    width: 14px; height: 14px;
+    border: 2px solid rgba(77,142,240,.2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .65s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 24px; color: var(--muted); font-size: 13px;
+    font-family: var(--mono);
+  }
+
+  /* scrollbars */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 10px; }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo"><i class="ti ti-chart-dots"></i></div>
+    <div>
+      <div class="app-title">Data Analysis Agent</div>
+      <div class="app-sub">ai-powered · local</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="api-field">
+      <label>API KEY</label>
+      <input type="password" id="api-key" placeholder="sk-ant-api03-…" />
+    </div>
+    <div class="pill muted" id="status-pill">
+      <div class="dot"></div>idle
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div>
+      <div class="sec-label">Data sources</div>
+      <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
+        <i class="ti ti-cloud-upload"></i>
+        <p>Drop files here or click to upload</p>
+        <span>CSV · PDF · JSON · TXT · TSV</span>
+      </div>
+      <input type="file" id="file-input" multiple accept=".csv,.pdf,.json,.txt,.tsv" />
+    </div>
+
+    <div>
+      <div class="sec-label">Loaded files</div>
+      <div class="file-list" id="file-list">
+        <div style="font-size:11px;color:var(--hint);text-align:center;padding:8px 0;font-family:var(--mono);">no files loaded</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-label">Analysis mode</div>
+      <div class="mode-list">
+        <button class="mode-btn active" onclick="setMode(this,'full')"><i class="ti ti-layout-dashboard"></i>Full analysis</button>
+        <button class="mode-btn" onclick="setMode(this,'anomaly')"><i class="ti ti-alert-triangle"></i>Anomaly detection</button>
+        <button class="mode-btn" onclick="setMode(this,'trend')"><i class="ti ti-trending-up"></i>Trend & correlation</button>
+        <button class="mode-btn" onclick="setMode(this,'stats')"><i class="ti ti-math-function"></i>Statistical summary</button>
+        <button class="mode-btn" onclick="setMode(this,'forecast')"><i class="ti ti-arrows-right"></i>Forecasting</button>
+      </div>
+    </div>
+
+    <button class="run-btn" id="run-btn" onclick="runAnalysis()" disabled>
+      <i class="ti ti-player-play"></i>Run analysis
+    </button>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content" id="content">
+    <div class="welcome" id="welcome">
+      <div class="welcome-icon"><i class="ti ti-database"></i></div>
+      <h3>Upload data to begin</h3>
+      <p>Enter your Anthropic API key above, load CSV files, PDFs, time-series, or any tabular data — the agent will surface anomalies, trends, statistics, and forecasts.</p>
+    </div>
+  </div>
+
+  <!-- INSIGHTS -->
+  <div class="insights">
+    <div class="ins-header"><i class="ti ti-brain"></i>AI insights</div>
+    <div class="ins-scroll" id="ins-scroll">
+      <div class="imsg sys">Enter your API key, upload a file, and run analysis to receive AI-powered insights.</div>
+    </div>
+    <div class="chat-row">
+      <input type="text" id="chat-in" placeholder="Ask about your data…" onkeydown="if(event.key==='Enter')sendQ()" />
+      <button class="send-btn" id="send-btn" onclick="sendQ()" disabled>
+        <i class="ti ti-send"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATE ──
+let files = [], contents = {}, mode = 'full', charts = {};
+
+// ── FILE HANDLING ──
+const fileInput = document.getElementById('file-input');
+fileInput.addEventListener('change', e => { Array.from(e.target.files).forEach(addFile); e.target.value = ''; });
+
+const dz = document.getElementById('dropzone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); Array.from(e.dataTransfer.files).forEach(addFile); });
+
+function addFile(f) {
+  if (files.find(x => x.name === f.name)) return;
+  files.push(f);
+  const r = new FileReader();
+  r.onload = ev => { contents[f.name] = ev.target.result; };
+  /\.pdf$/i.test(f.name) ? r.readAsDataURL(f) : r.readAsText(f);
+  renderFiles();
+  document.getElementById('run-btn').disabled = false;
+  document.getElementById('send-btn').disabled = false;
+}
+
+function removeFile(name) {
+  files = files.filter(f => f.name !== name);
+  delete contents[name];
+  renderFiles();
+  if (!files.length) {
+    document.getElementById('run-btn').disabled = true;
+    document.getElementById('send-btn').disabled = true;
+  }
+}
+
+function iconFor(n) {
+  if (/\.(csv|tsv)$/i.test(n)) return ['ti-table', 'csv'];
+  if (/\.pdf$/i.test(n)) return ['ti-file-type-pdf', 'pdf'];
+  if (/\.json$/i.test(n)) return ['ti-braces', 'json'];
+  return ['ti-file-text', ''];
+}
+
+function renderFiles() {
+  const el = document.getElementById('file-list');
+  if (!files.length) {
+    el.innerHTML = '<div style="font-size:11px;color:var(--hint);text-align:center;padding:8px 0;font-family:var(--mono);">no files loaded</div>';
+    return;
+  }
+  el.innerHTML = files.map(f => {
+    const [ic, cl] = iconFor(f.name);
+    const sz = f.size > 1048576 ? (f.size/1048576).toFixed(1)+'MB' : Math.round(f.size/1024)+'KB';
+    return `<div class="file-item">
+      <i class="ti ${ic} ${cl}"></i>
+      <span class="file-name" title="${f.name}">${f.name}</span>
+      <span class="file-size">${sz}</span>
+      <button class="file-rm" onclick="removeFile('${f.name}')" title="Remove"><i class="ti ti-x"></i></button>
+    </div>`;
+  }).join('');
+}
+
+function setMode(btn, m) {
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  mode = m;
+}
+
+// ── API ──
+function getKey() { return document.getElementById('api-key').value.trim(); }
+
+function setStatus(state) {
+  const pill = document.getElementById('status-pill');
+  if (state === 'running') {
+    pill.className = 'pill'; pill.style.background = 'var(--amber-dim)'; pill.style.color = 'var(--amber)';
+    pill.innerHTML = '<div class="dot pulse"></div>analyzing';
+  } else if (state === 'done') {
+    pill.className = 'pill green'; pill.style.background = ''; pill.style.color = '';
+    pill.innerHTML = '<div class="dot pulse"></div>ready';
+  } else {
+    pill.className = 'pill muted'; pill.style.background = ''; pill.style.color = '';
+    pill.innerHTML = '<div class="dot"></div>idle';
+  }
+}
+
+async function callClaude(system, userContent, multipart) {
+  const key = getKey();
+  if (!key) throw new Error('Please enter your Anthropic API key in the top bar.');
+  const messages = multipart ? userContent : [{ role: 'user', content: userContent }];
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2000, system, messages })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: { message: res.statusText } }));
+    throw new Error(err?.error?.message || `HTTP ${res.status}`);
+  }
+  const data = await res.json();
+  return (data.content || []).map(c => c.text || '').join('');
+}
+
+// ── PROMPTS ──
+const PROMPTS = {
+  full: 'Perform a comprehensive analysis: statistical summary, anomaly detection, trend analysis, correlations, and a 6-point forecast.',
+  anomaly: 'Focus on anomaly and outlier detection. Identify unusual patterns, spikes, gaps, and outliers.',
+  trend: 'Focus on trend analysis and correlations: upward/downward trends, seasonal patterns, inter-variable relationships.',
+  stats: 'Provide a detailed statistical summary: mean, median, std deviation, min, max, quartiles, distribution shape, missing values.',
+  forecast: 'Focus on forecasting: analyze patterns and generate predictions for the next 6 periods.'
+};
+
+const SYSTEM = `You are a data analysis expert. Analyze the provided data and return ONLY valid JSON (no markdown fences, no preamble, no trailing text) matching this exact schema:
+{"summary":{"title":"string","description":"string","rowCount":0,"colCount":0,"dataType":"string"},"metrics":[{"label":"string","value":"string","delta":"string","direction":"up"}],"anomalies":[{"severity":"warn","title":"string","description":"string"}],"stats":[{"key":"string","value":"string"}],"trends":[{"label":"string","description":"string"}],"chartData":{"timeSeries":{"labels":[],"datasets":[{"label":"string","data":[]}]},"distribution":{"labels":[],"data":[]}},"forecast":{"labels":[],"actual":[],"predicted":[]},"insights":["string"]}
+Requirements: 4+ metrics, 3+ anomalies, 6+ stat rows, 2+ trends, 6 forecast points, 3+ insights. Use real values from the data.`;
+
+// ── ANALYSIS ──
+async function runAnalysis() {
+  if (!files.length) return;
+  const btn = document.getElementById('run-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spin"></div>Analyzing…';
+  setStatus('running');
+
+  const ws = document.getElementById('welcome');
+  if (ws) ws.remove();
+  const content = document.getElementById('content');
+  content.innerHTML = '<div class="loading-row"><div class="spin-dark"></div>Running analysis…</div>';
+
+  try {
+    const isPdf = files.length === 1 && /\.pdf$/i.test(files[0].name) && (contents[files[0].name]||'').startsWith('data:');
+    let raw;
+    if (isPdf) {
+      const b64 = contents[files[0].name].split(',')[1];
+      raw = await callClaude(SYSTEM, [{ role: 'user', content: [
+        { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } },
+        { type: 'text', text: PROMPTS[mode] }
+      ]}], true);
+    } else {
+      const desc = files.map(f => `File: ${f.name}\n${(contents[f.name]||'').slice(0, 6000)}`).join('\n---\n');
+      raw = await callClaude(SYSTEM, `${PROMPTS[mode]}\n\nData:\n${desc}`, false);
+    }
+    const result = JSON.parse(raw.replace(/```json|```/g, '').trim());
+    renderDashboard(result);
+    renderInsights(result.insights || []);
+    addMsg('Analysis complete. Ask me anything about your data.', 'sys');
+    setStatus('done');
+  } catch (err) {
+    content.innerHTML = `<div class="card"><p style="color:var(--red);font-size:13px;font-family:var(--mono);"><strong>Error:</strong> ${err.message}</p></div>`;
+    addMsg('Error: ' + err.message, 'err');
+    setStatus('idle');
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="ti ti-player-play"></i>Run analysis';
+}
+
+// ── DASHBOARD ──
+function killCharts() {
+  Object.values(charts).forEach(c => { try { c.destroy(); } catch(e) {} });
+  charts = {};
+}
+
+const COLORS = ['#4d8ef0','#3ecf8e','#f5a623','#f06565','#a78bfa','#fb923c'];
+const chartDefaults = {
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { labels: { color: '#7c8299', font: { size: 10, family: "'IBM Plex Mono'" }, boxWidth: 10 } } },
+  scales: {
+    x: { ticks: { color: '#7c8299', font: { size: 10, family: "'IBM Plex Mono'" }, maxRotation: 45, autoSkip: true }, grid: { color: '#1a1e28' } },
+    y: { ticks: { color: '#7c8299', font: { size: 10, family: "'IBM Plex Mono'" } }, grid: { color: '#1a1e28' } }
+  }
+};
+
+function renderDashboard(r) {
+  killCharts();
+  const content = document.getElementById('content');
+
+  const metrics = (r.metrics||[]).slice(0,4).map(m => `
+    <div class="metric-card">
+      <div class="m-label">${m.label}</div>
+      <div class="m-value">${m.value}</div>
+      <div class="m-delta ${m.direction||'neutral'}">${{up:'↑ ',down:'↓ ',neutral:'– '}[m.direction]||''}${m.delta}</div>
+    </div>`).join('');
+
+  const anomalies = (r.anomalies||[]).map(a => `
+    <div class="aitem ${a.severity||'warn'}">
+      <i class="ti ${a.severity==='danger'?'ti-circle-x':a.severity==='ok'?'ti-circle-check':'ti-alert-triangle'}"></i>
+      <div><strong>${a.title}</strong><br>${a.description}</div>
+    </div>`).join('');
+
+  const stats = (r.stats||[]).map(s => `
+    <div class="stat-row"><span class="sk">${s.key}</span><span class="sv">${s.value}</span></div>`).join('');
+
+  const trends = (r.trends||[]).map(t => `
+    <div class="trend-item">
+      <i class="ti ti-trending-up"></i>
+      <div><strong>${t.label}</strong><br><span style="color:var(--muted)">${t.description}</span></div>
+    </div>`).join('');
+
+  content.innerHTML = `
+    ${metrics ? `<div class="metric-row">${metrics}</div>` : ''}
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">${r.summary?.title || 'Time series'}</span>
+        <span class="tag tag-t">TREND</span>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6;">${r.summary?.description||''}</p>
+      <div style="position:relative;height:210px;"><canvas id="tsChart"></canvas></div>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Distribution</span><span class="tag tag-s">HISTOGRAM</span></div>
+        <div style="position:relative;height:180px;"><canvas id="distChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Forecast</span><span class="tag tag-f">PREDICTED</span></div>
+        <div style="position:relative;height:180px;"><canvas id="fcChart"></canvas></div>
+      </div>
+    </div>
+    ${anomalies ? `<div class="card">
+      <div class="card-header"><span class="card-title">Anomalies & alerts</span><span class="tag tag-a">${(r.anomalies||[]).length} DETECTED</span></div>
+      <div class="anomaly-list">${anomalies}</div>
+    </div>` : ''}
+    ${stats ? `<div class="card">
+      <div class="card-header"><span class="card-title">Statistical summary</span><span class="tag tag-s">DESCRIPTIVE</span></div>
+      <div class="stats-grid">${stats}</div>
+    </div>` : ''}
+    ${trends ? `<div class="card">
+      <div class="card-header"><span class="card-title">Trend analysis</span><span class="tag tag-t">PATTERNS</span></div>
+      ${trends}
+    </div>` : ''}
+  `;
+
+  // Time series chart
+  const tsd = r.chartData?.timeSeries;
+  if (tsd?.labels?.length) {
+    const ctx = document.getElementById('tsChart');
+    if (ctx) charts.ts = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: tsd.labels,
+        datasets: (tsd.datasets||[]).map((ds, i) => ({
+          label: ds.label, data: ds.data,
+          borderColor: COLORS[i % COLORS.length],
+          backgroundColor: COLORS[i % COLORS.length] + '14',
+          fill: i === 0, tension: .4, pointRadius: 3,
+          borderWidth: 2, borderDash: i > 0 ? [5, 4] : []
+        }))
+      },
+      options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, legend: { ...chartDefaults.plugins.legend, display: (tsd.datasets||[]).length > 1 } } }
+    });
+  }
+
+  // Distribution chart
+  const dd = r.chartData?.distribution;
+  if (dd?.labels?.length) {
+    const ctx = document.getElementById('distChart');
+    if (ctx) charts.dist = new Chart(ctx, {
+      type: 'bar',
+      data: { labels: dd.labels, datasets: [{ label: 'Count', data: dd.data, backgroundColor: dd.data.map((_, i) => COLORS[i % COLORS.length] + 'cc') }] },
+      options: { ...chartDefaults, plugins: { legend: { display: false } } }
+    });
+  }
+
+  // Forecast chart
+  const fd = r.forecast;
+  if (fd?.labels?.length) {
+    const ctx = document.getElementById('fcChart');
+    if (ctx) charts.fc = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: fd.labels,
+        datasets: [
+          { label: 'Actual', data: fd.actual, borderColor: COLORS[0], fill: false, tension: .35, pointRadius: 3, borderWidth: 2 },
+          { label: 'Forecast', data: fd.predicted, borderColor: COLORS[1], borderDash: [5,4], fill: false, tension: .35, pointRadius: 3, borderWidth: 2 }
+        ]
+      },
+      options: { ...chartDefaults }
+    });
+  }
+}
+
+function renderInsights(arr) {
+  const el = document.getElementById('ins-scroll');
+  el.innerHTML = '';
+  arr.forEach(i => addMsg(i, 'ai'));
+}
+
+function addMsg(text, type) {
+  const el = document.getElementById('ins-scroll');
+  const d = document.createElement('div');
+  d.className = `imsg ${type}`;
+  d.textContent = text;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+
+// ── CHAT ──
+async function sendQ() {
+  const input = document.getElementById('chat-in');
+  const q = input.value.trim();
+  if (!q || !files.length) return;
+  input.value = '';
+  const btn = document.getElementById('send-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spin"></div>';
+  addMsg(q, 'q');
+
+  try {
+    const desc = files.map(f => `File: ${f.name}\n${(contents[f.name]||'').slice(0,3000)}`).join('\n---\n');
+    const text = await callClaude(
+      'You are a data analysis assistant. Answer questions about the data in 2-4 concise sentences. Be specific with numbers.',
+      `Data:\n${desc}\n\nQuestion: ${q}`, false
+    );
+    addMsg(text, 'ai');
+  } catch (err) {
+    addMsg('Error: ' + err.message, 'err');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="ti ti-send"></i>';
+}
+</script>
+</body>
+</html>
