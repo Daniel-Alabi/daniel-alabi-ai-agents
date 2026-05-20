@@ -1,0 +1,394 @@
+
+<h2 class="sr-only">Data Analysis Agent — upload data files for AI-powered analysis including anomaly detection, trends, statistics, and forecasting.</h2>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); font-size: 14px; color: var(--color-text-primary); background: transparent; }
+.shell { display: grid; grid-template-rows: auto 1fr; min-height: 100vh; }
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.topbar-left { display: flex; align-items: center; gap: 10px; }
+.logo-mark { width: 28px; height: 28px; background: #185FA5; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+.logo-mark i { color: #fff; font-size: 15px; }
+.app-title { font-size: 15px; font-weight: 500; }
+.app-sub { font-size: 12px; color: var(--color-text-secondary); }
+.status-pill { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #0F6E56; background: #E1F5EE; padding: 4px 10px; border-radius: var(--border-radius-md); }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; background: #1D9E75; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.main { display: grid; grid-template-columns: 248px 1fr 288px; height: calc(100vh - 49px); overflow: hidden; }
+.sidebar { border-right: 0.5px solid var(--color-border-tertiary); padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.panel-label { font-size: 11px; font-weight: 500; color: var(--color-text-tertiary); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 6px; }
+.upload-zone { border: 1px dashed var(--color-border-secondary); border-radius: var(--border-radius-lg); padding: 18px 10px; text-align: center; cursor: pointer; transition: background .15s; }
+.upload-zone:hover { background: var(--color-background-secondary); }
+.upload-zone i { font-size: 22px; color: var(--color-text-secondary); margin-bottom: 5px; display: block; }
+.upload-zone p { font-size: 12px; color: var(--color-text-secondary); line-height: 1.5; }
+.upload-zone span { font-size: 11px; color: var(--color-text-tertiary); }
+#file-input { display: none; }
+.file-list { display: flex; flex-direction: column; gap: 5px; }
+.file-item { display: flex; align-items: center; gap: 7px; padding: 7px 9px; background: var(--color-background-secondary); border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-tertiary); }
+.file-name { flex: 1; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-size { font-size: 11px; color: var(--color-text-tertiary); white-space: nowrap; }
+.file-remove { background: none; border: none; cursor: pointer; color: var(--color-text-tertiary); padding: 0; line-height: 1; }
+.file-remove:hover { color: #A32D2D; }
+.abtn-group { display: flex; flex-direction: column; gap: 5px; }
+.abtn { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); background: transparent; cursor: pointer; font-size: 13px; color: var(--color-text-primary); text-align: left; font-family: var(--font-sans); transition: background .1s; }
+.abtn:hover { background: var(--color-background-secondary); }
+.abtn.active { background: #E6F1FB; border-color: #B5D4F4; color: #185FA5; }
+.abtn i { font-size: 15px; }
+.content-area { overflow-y: auto; padding: 14px 18px; background: var(--color-background-secondary); display: flex; flex-direction: column; gap: 14px; }
+.welcome-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 12px; text-align: center; padding: 40px; }
+.welcome-state i { font-size: 40px; color: var(--color-text-tertiary); }
+.welcome-state h3 { font-size: 15px; font-weight: 500; }
+.welcome-state p { font-size: 13px; color: var(--color-text-secondary); max-width: 300px; line-height: 1.6; }
+.metric-row { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 9px; }
+.metric-card { background: var(--color-background-primary); border-radius: var(--border-radius-md); padding: 11px 13px; border: 0.5px solid var(--color-border-tertiary); }
+.metric-label { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 3px; }
+.metric-value { font-size: 20px; font-weight: 500; }
+.metric-delta { font-size: 11px; margin-top: 2px; }
+.metric-delta.up { color: #0F6E56; }
+.metric-delta.down { color: #A32D2D; }
+.metric-delta.neutral { color: var(--color-text-secondary); }
+.chart-card { background: var(--color-background-primary); border-radius: var(--border-radius-lg); border: 0.5px solid var(--color-border-tertiary); padding: 14px; }
+.chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.chart-title { font-size: 13px; font-weight: 500; }
+.ctag { font-size: 11px; padding: 3px 8px; border-radius: var(--border-radius-md); }
+.ctag-anomaly { background: #FAEEDA; color: #854F0B; }
+.ctag-trend { background: #E6F1FB; color: #0C447C; }
+.ctag-forecast { background: #E1F5EE; color: #085041; }
+.ctag-stats { background: var(--color-background-secondary); color: var(--color-text-secondary); }
+.anomaly-list { display: flex; flex-direction: column; gap: 5px; margin-top: 6px; }
+.aitem { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border-radius: var(--border-radius-md); font-size: 12px; line-height: 1.5; }
+.aitem.warn { background: #FAEEDA; color: #633806; }
+.aitem.danger { background: #FCEBEB; color: #791F1F; }
+.aitem.ok { background: #E1F5EE; color: #085041; }
+.aitem i { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 8px; }
+.stat-row { display: flex; justify-content: space-between; padding: 5px 8px; background: var(--color-background-secondary); border-radius: var(--border-radius-md); font-size: 12px; }
+.stat-key { color: var(--color-text-secondary); }
+.stat-val { font-weight: 500; }
+.insights-panel { border-left: 0.5px solid var(--color-border-tertiary); display: flex; flex-direction: column; overflow: hidden; }
+.insights-header { padding: 13px 14px; border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; gap: 8px; }
+.insights-header i { font-size: 15px; color: #185FA5; }
+.insights-title { font-size: 13px; font-weight: 500; }
+.insights-scroll { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.imsg { font-size: 12px; line-height: 1.6; padding: 9px 11px; border-radius: var(--border-radius-md); }
+.imsg.ai { background: #E6F1FB; color: #0C447C; border: 0.5px solid #B5D4F4; }
+.imsg.system { background: var(--color-background-secondary); color: var(--color-text-secondary); font-style: italic; border: 0.5px solid var(--color-border-tertiary); }
+.imsg.warn { background: #FAEEDA; color: #633806; border: 0.5px solid #FAC775; }
+.imsg.err { background: #FCEBEB; color: #791F1F; border: 0.5px solid #F7C1C1; }
+.chat-area { padding: 10px; border-top: 0.5px solid var(--color-border-tertiary); display: flex; gap: 7px; }
+.chat-area input { flex: 1; padding: 7px 10px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: var(--color-background-primary); font-size: 12px; color: var(--color-text-primary); font-family: var(--font-sans); }
+.send-btn { padding: 7px 11px; background: #185FA5; color: #fff; border: none; border-radius: var(--border-radius-md); cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 4px; }
+.send-btn:hover { background: #0C447C; }
+.send-btn:disabled { opacity: .5; cursor: not-allowed; }
+.run-btn { width: 100%; padding: 9px; background: #185FA5; color: #fff; border: none; border-radius: var(--border-radius-md); cursor: pointer; font-size: 13px; font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 6px; font-family: var(--font-sans); }
+.run-btn:hover { background: #0C447C; }
+.run-btn:disabled { opacity: .5; cursor: not-allowed; }
+.spinner { width: 13px; height: 13px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+.spinner-dark { width: 13px; height: 13px; border: 2px solid rgba(0,0,0,.12); border-top-color: #185FA5; border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-row { display: flex; align-items: center; gap: 8px; padding: 20px; color: var(--color-text-secondary); font-size: 13px; }
+</style>
+
+<div class="shell">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo-mark"><i class="ti ti-chart-dots" aria-hidden="true"></i></div>
+      <div>
+        <div class="app-title">Data Analysis Agent</div>
+        <div class="app-sub">AI-powered insights across all your data</div>
+      </div>
+    </div>
+    <div class="status-pill"><div class="status-dot"></div>Agent ready</div>
+  </div>
+  <div class="main">
+    <div class="sidebar">
+      <div>
+        <div class="panel-label">Data sources</div>
+        <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+          <i class="ti ti-cloud-upload" aria-hidden="true"></i>
+          <p>Drop files here or click to upload</p>
+          <span>CSV, PDF, JSON, TXT, TSV</span>
+        </div>
+        <input type="file" id="file-input" multiple accept=".csv,.pdf,.json,.txt,.tsv" />
+      </div>
+      <div>
+        <div class="panel-label">Loaded files</div>
+        <div class="file-list" id="file-list">
+          <div style="font-size:12px;color:var(--color-text-tertiary);text-align:center;padding:10px 0;">No files loaded</div>
+        </div>
+      </div>
+      <div>
+        <div class="panel-label">Analysis type</div>
+        <div class="abtn-group">
+          <button class="abtn active" onclick="setMode(this,'full')"><i class="ti ti-layout-dashboard" aria-hidden="true"></i>Full analysis</button>
+          <button class="abtn" onclick="setMode(this,'anomaly')"><i class="ti ti-alert-triangle" aria-hidden="true"></i>Anomaly detection</button>
+          <button class="abtn" onclick="setMode(this,'trend')"><i class="ti ti-trending-up" aria-hidden="true"></i>Trend & correlation</button>
+          <button class="abtn" onclick="setMode(this,'stats')"><i class="ti ti-math-function" aria-hidden="true"></i>Statistical summary</button>
+          <button class="abtn" onclick="setMode(this,'forecast')"><i class="ti ti-arrows-right" aria-hidden="true"></i>Forecasting</button>
+        </div>
+      </div>
+      <button class="run-btn" id="run-btn" onclick="runAnalysis()" disabled>
+        <i class="ti ti-player-play" aria-hidden="true"></i>Run analysis
+      </button>
+    </div>
+
+    <div class="content-area" id="content-area">
+      <div class="welcome-state">
+        <i class="ti ti-database" aria-hidden="true"></i>
+        <h3>Upload data to begin</h3>
+        <p>Load CSV files, PDFs, time-series data, or any tabular file. The agent will surface anomalies, trends, statistics, and forecasts.</p>
+      </div>
+    </div>
+
+    <div class="insights-panel">
+      <div class="insights-header">
+        <i class="ti ti-brain" aria-hidden="true"></i>
+        <span class="insights-title">AI insights</span>
+      </div>
+      <div class="insights-scroll" id="insights-scroll">
+        <div class="imsg system">Upload a file and run analysis to receive AI-powered insights.</div>
+      </div>
+      <div class="chat-area">
+        <input type="text" id="chat-input" placeholder="Ask about your data…" onkeydown="if(event.key==='Enter')sendQ()" />
+        <button class="send-btn" id="send-btn" onclick="sendQ()" disabled>
+          <i class="ti ti-send" aria-hidden="true"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+let files = [], contents = {}, mode = 'full', charts = {};
+
+const fileInput = document.getElementById('file-input');
+fileInput.addEventListener('change', e => { Array.from(e.target.files).forEach(addFile); fileInput.value=''; });
+const zone = document.getElementById('upload-zone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.background='var(--color-background-secondary)'; });
+zone.addEventListener('dragleave', () => { zone.style.background=''; });
+zone.addEventListener('drop', e => { e.preventDefault(); zone.style.background=''; Array.from(e.dataTransfer.files).forEach(addFile); });
+
+function addFile(f) {
+  if (files.find(x=>x.name===f.name)) return;
+  files.push(f);
+  const r = new FileReader();
+  r.onload = ev => { contents[f.name] = ev.target.result; };
+  f.name.toLowerCase().endsWith('.pdf') ? r.readAsDataURL(f) : r.readAsText(f);
+  renderFiles();
+  document.getElementById('run-btn').disabled = false;
+  document.getElementById('send-btn').disabled = false;
+}
+
+function removeFile(name) {
+  files = files.filter(f=>f.name!==name);
+  delete contents[name];
+  renderFiles();
+  if (!files.length) { document.getElementById('run-btn').disabled=true; document.getElementById('send-btn').disabled=true; }
+}
+
+function iconFor(name) {
+  if (/\.(csv|tsv)$/i.test(name)) return ['ti-table','#185FA5'];
+  if (/\.pdf$/i.test(name)) return ['ti-file-type-pdf','#993C1D'];
+  return ['ti-file-text','#888780'];
+}
+
+function renderFiles() {
+  const el = document.getElementById('file-list');
+  if (!files.length) { el.innerHTML='<div style="font-size:12px;color:var(--color-text-tertiary);text-align:center;padding:10px 0;">No files loaded</div>'; return; }
+  el.innerHTML = files.map(f => {
+    const [ic,cl] = iconFor(f.name);
+    const sz = f.size>1048576 ? (f.size/1048576).toFixed(1)+'MB' : Math.round(f.size/1024)+'KB';
+    return `<div class="file-item"><i class="ti ${ic}" style="font-size:15px;color:${cl}" aria-hidden="true"></i><span class="file-name" title="${f.name}">${f.name}</span><span class="file-size">${sz}</span><button class="file-remove" onclick="removeFile('${f.name}')" aria-label="Remove ${f.name}"><i class="ti ti-x" style="font-size:13px" aria-hidden="true"></i></button></div>`;
+  }).join('');
+}
+
+function setMode(btn, m) {
+  document.querySelectorAll('.abtn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); mode = m;
+}
+
+async function callAPI(system, userContent, multipart) {
+  const messages = multipart ? userContent : [{role:'user', content: userContent}];
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      system,
+      messages
+    })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(()=>({error:{message:res.statusText}}));
+    throw new Error(err?.error?.message || `HTTP ${res.status}`);
+  }
+  const data = await res.json();
+  return (data.content||[]).map(c=>c.text||'').join('');
+}
+
+const PROMPTS = {
+  full: 'Comprehensive analysis: statistical summary, anomaly detection, trend analysis, correlations, and 6-point forecast.',
+  anomaly: 'Focus on anomaly and outlier detection. Identify unusual patterns, spikes, gaps, outliers.',
+  trend: 'Trend analysis and correlations: upward/downward trends, seasonal patterns, inter-variable relationships.',
+  stats: 'Statistical summary: mean, median, std deviation, min, max, quartiles, distribution shape, missing values.',
+  forecast: 'Forecasting: analyze patterns, generate predictions for next 6 periods with confidence intervals.'
+};
+
+const SYSTEM = `You are a data analysis expert. Analyze the provided data and return ONLY valid JSON (no markdown fences, no preamble, no trailing text) with this exact structure:
+{"summary":{"title":"string","description":"string","rowCount":0,"colCount":0,"dataType":"string"},"metrics":[{"label":"string","value":"string","delta":"string","direction":"up"}],"anomalies":[{"severity":"warn","title":"string","description":"string"}],"stats":[{"key":"string","value":"string"}],"trends":[{"label":"string","description":"string"}],"chartData":{"timeSeries":{"labels":[],"datasets":[{"label":"string","data":[]}]},"distribution":{"labels":[],"data":[]}},"forecast":{"labels":[],"actual":[],"predicted":[]},"insights":["string"]}
+Rules: at least 4 metrics, 3 anomalies, 6 stat rows, 2 trends, 6 forecast points, 3 insights. Use real values from the data. All arrays must be non-empty.`;
+
+async function runAnalysis() {
+  if (!files.length) return;
+  const btn = document.getElementById('run-btn');
+  btn.disabled = true; btn.innerHTML = '<div class="spinner"></div>Analyzing…';
+  const ca = document.getElementById('content-area');
+  ca.innerHTML = '<div class="loading-row"><div class="spinner-dark"></div>Running analysis…</div>';
+
+  try {
+    const isPdf = files.length===1 && /\.pdf$/i.test(files[0].name) && (contents[files[0].name]||'').startsWith('data:');
+    let text;
+    if (isPdf) {
+      const b64 = contents[files[0].name].split(',')[1];
+      text = await callAPI(SYSTEM, [{role:'user', content:[
+        {type:'document', source:{type:'base64', media_type:'application/pdf', data:b64}},
+        {type:'text', text: PROMPTS[mode]}
+      ]}], true);
+    } else {
+      const desc = files.map(f=>`File: ${f.name}\n${(contents[f.name]||'').slice(0,5000)}`).join('\n---\n');
+      text = await callAPI(SYSTEM, `${PROMPTS[mode]}\n\nData:\n${desc}`, false);
+    }
+    const result = JSON.parse(text.replace(/```json|```/g,'').trim());
+    renderDashboard(result);
+    renderInsights(result.insights||[]);
+    addMsg('Analysis complete. You can now ask questions about your data.', 'system');
+  } catch(err) {
+    ca.innerHTML = `<div class="chart-card"><p style="color:#A32D2D;font-size:13px;"><strong>Analysis failed:</strong> ${err.message}</p></div>`;
+    addMsg('Analysis error: ' + err.message, 'err');
+  }
+  btn.disabled = false; btn.innerHTML = '<i class="ti ti-player-play" aria-hidden="true"></i>Run analysis';
+}
+
+function killCharts() { Object.values(charts).forEach(c=>{try{c.destroy()}catch(e){}}); charts={}; }
+
+function renderDashboard(r) {
+  killCharts();
+  const ca = document.getElementById('content-area');
+  const metrics = (r.metrics||[]).slice(0,4).map(m=>`
+    <div class="metric-card">
+      <div class="metric-label">${m.label}</div>
+      <div class="metric-value">${m.value}</div>
+      <div class="metric-delta ${m.direction||'neutral'}">${{up:'↑',down:'↓',neutral:'–'}[m.direction]||'–'} ${m.delta}</div>
+    </div>`).join('');
+
+  const anomalies = (r.anomalies||[]).map(a=>`
+    <div class="aitem ${a.severity||'warn'}">
+      <i class="ti ${a.severity==='danger'?'ti-circle-x':a.severity==='ok'?'ti-circle-check':'ti-alert-triangle'}" aria-hidden="true"></i>
+      <div><strong>${a.title}</strong><br>${a.description}</div>
+    </div>`).join('');
+
+  const stats = (r.stats||[]).map(s=>`
+    <div class="stat-row"><span class="stat-key">${s.key}</span><span class="stat-val">${s.value}</span></div>`).join('');
+
+  const trends = (r.trends||[]).map(t=>`
+    <div style="display:flex;gap:8px;margin-top:7px;padding:8px 10px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);font-size:12px;">
+      <i class="ti ti-trending-up" style="color:#185FA5;flex-shrink:0;font-size:14px;margin-top:1px;" aria-hidden="true"></i>
+      <div><strong>${t.label}</strong><br><span style="color:var(--color-text-secondary)">${t.description}</span></div>
+    </div>`).join('');
+
+  ca.innerHTML = `
+    ${metrics?`<div class="metric-row">${metrics}</div>`:''}
+    <div class="chart-card">
+      <div class="chart-header"><span class="chart-title">${r.summary?.title||'Time series'}</span><span class="ctag ctag-trend">trend</span></div>
+      <p style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px;">${r.summary?.description||''}</p>
+      <div style="position:relative;height:200px;"><canvas id="tsChart" aria-label="Time series chart" role="img"></canvas></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <div class="chart-card">
+        <div class="chart-header"><span class="chart-title">Distribution</span><span class="ctag ctag-stats">histogram</span></div>
+        <div style="position:relative;height:170px;"><canvas id="distChart" aria-label="Distribution chart" role="img"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-header"><span class="chart-title">Forecast</span><span class="ctag ctag-forecast">predicted</span></div>
+        <div style="position:relative;height:170px;"><canvas id="fcChart" aria-label="Forecast chart" role="img"></canvas></div>
+      </div>
+    </div>
+    ${anomalies?`<div class="chart-card"><div class="chart-header"><span class="chart-title">Anomalies & alerts</span><span class="ctag ctag-anomaly">${(r.anomalies||[]).length} detected</span></div><div class="anomaly-list">${anomalies}</div></div>`:''}
+    ${stats?`<div class="chart-card"><div class="chart-header"><span class="chart-title">Statistical summary</span><span class="ctag ctag-stats">descriptive</span></div><div class="stats-grid">${stats}</div></div>`:''}
+    ${trends?`<div class="chart-card"><div class="chart-header"><span class="chart-title">Trend analysis</span><span class="ctag ctag-trend">patterns</span></div>${trends}</div>`:''}
+  `;
+
+  const colors = ['#185FA5','#0F6E56','#BA7517','#A32D2D'];
+  const tsd = r.chartData?.timeSeries;
+  if (tsd?.labels?.length) {
+    const ctx = document.getElementById('tsChart');
+    if (ctx) charts.ts = new Chart(ctx, {
+      type:'line',
+      data:{ labels:tsd.labels, datasets:(tsd.datasets||[]).map((ds,i)=>({ label:ds.label, data:ds.data, borderColor:colors[i%4], backgroundColor:'rgba(24,95,165,0.07)', fill:i===0, tension:.35, pointRadius:3, borderWidth:2, borderDash:i>0?[5,4]:[] })) },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:(tsd.datasets||[]).length>1, labels:{font:{size:10}}}}, scales:{x:{ticks:{font:{size:10},maxRotation:45,autoSkip:true}},y:{ticks:{font:{size:10}}}} }
+    });
+  }
+
+  const dd = r.chartData?.distribution;
+  if (dd?.labels?.length) {
+    const ctx = document.getElementById('distChart');
+    if (ctx) charts.dist = new Chart(ctx, {
+      type:'bar',
+      data:{ labels:dd.labels, datasets:[{label:'Count', data:dd.data, backgroundColor:dd.data.map((_,i)=>colors[i%colors.length])}] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{ticks:{font:{size:10}}},y:{ticks:{font:{size:10}}}} }
+    });
+  }
+
+  const fd = r.forecast;
+  if (fd?.labels?.length) {
+    const ctx = document.getElementById('fcChart');
+    if (ctx) charts.fc = new Chart(ctx, {
+      type:'line',
+      data:{ labels:fd.labels, datasets:[
+        {label:'Actual', data:fd.actual, borderColor:'#185FA5', fill:false, tension:.3, pointRadius:3, borderWidth:2},
+        {label:'Forecast', data:fd.predicted, borderColor:'#0F6E56', borderDash:[5,4], fill:false, tension:.3, pointRadius:3, borderWidth:2}
+      ]},
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:true, labels:{font:{size:10}}}}, scales:{x:{ticks:{font:{size:10}}},y:{ticks:{font:{size:10}}}} }
+    });
+  }
+}
+
+function renderInsights(arr) {
+  const el = document.getElementById('insights-scroll');
+  el.innerHTML = '';
+  arr.forEach(i=>addMsg(i,'ai'));
+}
+
+function addMsg(text, type) {
+  const el = document.getElementById('insights-scroll');
+  const d = document.createElement('div');
+  d.className = `imsg ${type}`; d.textContent = text;
+  el.appendChild(d); el.scrollTop = el.scrollHeight;
+}
+
+async function sendQ() {
+  const input = document.getElementById('chat-input');
+  const q = input.value.trim();
+  if (!q || !files.length) return;
+  input.value = '';
+  const btn = document.getElementById('send-btn');
+  btn.disabled = true; btn.innerHTML = '<div class="spinner"></div>';
+  addMsg('Q: ' + q, 'system');
+  const desc = files.map(f=>`File: ${f.name}\n${(contents[f.name]||'').slice(0,3000)}`).join('\n---\n');
+  try {
+    const text = await callAPI(
+      'You are a data analysis assistant. Answer questions about the data concisely in 2-4 sentences. Be specific with numbers when possible.',
+      `Data:\n${desc}\n\nQuestion: ${q}`, false
+    );
+    addMsg(text, 'ai');
+  } catch(err) {
+    addMsg('Error: ' + err.message, 'err');
+  }
+  btn.disabled = false; btn.innerHTML = '<i class="ti ti-send" aria-hidden="true"></i>';
+}
+</script>
