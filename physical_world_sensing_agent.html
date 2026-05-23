@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans,'system-ui');background:transparent;color:var(--color-text-primary);font-size:15px}
+:root{
+  --teal:#1D9E75;--teal-bg:#E1F5EE;--teal-d:#085041;
+  --amber:#BA7517;--amber-bg:#FAEEDA;
+  --red:#E24B4A;--red-bg:#FCEBEB;--red-d:#A32D2D;
+  --blue:#378ADD;--blue-bg:#E6F1FB;--blue-d:#0C447C;
+  --purple:#7F77DD;--purple-bg:#EEEDFE;--purple-d:#3C3489;
+  --gray-line:var(--color-border-tertiary);
+}
+#root{display:flex;flex-direction:column;height:100vh;min-height:520px;max-height:900px}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:0.5px solid var(--gray-line)}
+.logo{display:flex;align-items:center;gap:8px;font-weight:500;font-size:15px}
+.pulse{width:9px;height:9px;border-radius:50%;background:var(--teal);animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(0.85)}}
+.status-row{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--color-text-secondary)}
+.badge{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500}
+.b-ok{background:var(--teal-bg);color:var(--teal-d)}
+.b-warn{background:var(--amber-bg);color:var(--amber)}
+.b-err{background:var(--red-bg);color:var(--red-d)}
+.b-info{background:var(--blue-bg);color:var(--blue-d)}
+
+.main{display:flex;flex:1;overflow:hidden}
+.sidebar{width:200px;flex-shrink:0;border-right:0.5px solid var(--gray-line);padding:12px 0;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+.nav-item{display:flex;align-items:center;gap:8px;padding:7px 16px;cursor:pointer;font-size:13px;color:var(--color-text-secondary);border-radius:0;transition:background .15s}
+.nav-item:hover,.nav-item.active{background:var(--color-background-secondary);color:var(--color-text-primary)}
+.nav-item i{font-size:16px}
+.nav-section{font-size:10px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--color-text-tertiary);padding:12px 16px 4px;margin-top:4px}
+
+.content{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.tabs{display:flex;border-bottom:0.5px solid var(--gray-line);padding:0 16px;gap:2px}
+.tab{font-size:12px;padding:8px 12px;cursor:pointer;color:var(--color-text-secondary);border-bottom:2px solid transparent;margin-bottom:-0.5px}
+.tab.active{color:var(--color-text-primary);border-bottom-color:var(--teal)}
+.panel{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+
+.metrics-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+.metric-card{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 12px}
+.metric-label{font-size:11px;color:var(--color-text-secondary);margin-bottom:4px}
+.metric-val{font-size:22px;font-weight:500;line-height:1}
+.metric-unit{font-size:12px;color:var(--color-text-secondary);margin-left:2px}
+.metric-delta{font-size:11px;margin-top:3px}
+.delta-up{color:var(--red)}
+.delta-down{color:var(--teal)}
+
+.card{background:var(--color-background-primary);border:0.5px solid var(--gray-line);border-radius:var(--border-radius-lg);padding:12px 14px}
+.card-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.card-title{font-size:13px;font-weight:500}
+
+.chart-wrap{position:relative;width:100%;height:160px}
+canvas{display:block}
+
+.alert-list{display:flex;flex-direction:column;gap:6px}
+.alert{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-radius:var(--border-radius-md);font-size:12px}
+.alert-crit{background:var(--red-bg);border-left:3px solid var(--red)}
+.alert-warn{background:var(--amber-bg);border-left:3px solid var(--amber)}
+.alert-ok{background:var(--teal-bg);border-left:3px solid var(--teal)}
+.alert i{font-size:15px;margin-top:1px;flex-shrink:0}
+.alert-crit i{color:var(--red)}
+.alert-warn i{color:var(--amber)}
+.alert-ok i{color:var(--teal)}
+.alert-body{flex:1}
+.alert-title{font-weight:500;margin-bottom:1px}
+.alert-time{color:var(--color-text-secondary);font-size:11px}
+
+.sensor-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.sensor-tile{border:0.5px solid var(--gray-line);border-radius:var(--border-radius-md);padding:10px 12px;cursor:pointer;transition:background .15s}
+.sensor-tile:hover{background:var(--color-background-secondary)}
+.sensor-tile.active{border-color:var(--teal);background:var(--teal-bg)}
+.sensor-name{font-size:12px;font-weight:500;margin-bottom:2px}
+.sensor-val{font-size:18px;font-weight:500;color:var(--teal)}
+.sensor-loc{font-size:10px;color:var(--color-text-secondary);margin-top:3px}
+.sensor-status{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:4px;vertical-align:middle}
+.s-ok{background:var(--teal)}.s-warn{background:var(--amber)}.s-err{background:var(--red)}
+
+.input-row{display:flex;gap:6px;margin-top:auto;padding-top:10px;border-top:0.5px solid var(--gray-line)}
+.chat-input{flex:1;padding:8px 10px;font-size:13px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary)}
+.chat-input:focus{outline:none;border-color:var(--teal)}
+.send-btn{padding:8px 14px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);cursor:pointer;font-size:13px;color:var(--color-text-primary);transition:background .15s;display:flex;align-items:center;gap:4px}
+.send-btn:hover{background:var(--color-background-secondary)}
+.send-btn:disabled{opacity:.5;cursor:not-allowed}
+
+.chat-log{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:4px}
+.msg{max-width:90%;padding:8px 12px;border-radius:var(--border-radius-lg);font-size:13px;line-height:1.5}
+.msg-user{align-self:flex-end;background:var(--color-background-secondary);border-radius:var(--border-radius-lg) var(--border-radius-lg) 4px var(--border-radius-lg)}
+.msg-ai{align-self:flex-start;background:var(--teal-bg);color:var(--teal-d);border-radius:4px var(--border-radius-lg) var(--border-radius-lg) var(--border-radius-lg)}
+.msg-loading{align-self:flex-start;color:var(--color-text-secondary);font-style:italic;font-size:12px;padding:6px 10px}
+
+.upload-zone{border:1.5px dashed var(--color-border-secondary);border-radius:var(--border-radius-lg);padding:20px;text-align:center;cursor:pointer;transition:background .15s;font-size:13px;color:var(--color-text-secondary)}
+.upload-zone:hover{background:var(--color-background-secondary)}
+.upload-zone i{font-size:28px;display:block;margin-bottom:6px;color:var(--color-text-tertiary)}
+
+.report-block{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 14px;font-size:12px;line-height:1.7;white-space:pre-wrap;font-family:var(--font-mono)}
+
+.forecast-row{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}
+.fc-day{flex-shrink:0;width:72px;text-align:center;background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:8px 4px}
+.fc-label{font-size:10px;color:var(--color-text-secondary);margin-bottom:4px}
+.fc-val{font-size:15px;font-weight:500}
+.fc-sub{font-size:10px;color:var(--color-text-secondary);margin-top:2px}
+
+.quick-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}
+.chip{font-size:11px;padding:3px 9px;border:0.5px solid var(--color-border-secondary);border-radius:20px;cursor:pointer;color:var(--color-text-secondary);background:var(--color-background-primary);transition:background .15s}
+.chip:hover{background:var(--color-background-secondary);color:var(--color-text-primary)}
+
+.sim-controls{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--color-text-secondary)}
+.sim-controls label{display:flex;align-items:center;gap:5px;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="root">
+  <div class="topbar">
+    <div class="logo"><div class="pulse"></div> Physical World Sensing Agent</div>
+    <div class="status-row">
+      <span id="liveCount" class="badge b-ok">12 sensors live</span>
+      <span id="alertBadge" class="badge b-warn">2 alerts</span>
+      <span id="simBadge" class="badge b-info">Simulated feed</span>
+    </div>
+  </div>
+  <div class="main">
+    <div class="sidebar">
+      <div class="nav-section">Views</div>
+      <div class="nav-item active" onclick="setView('dashboard')"><i class="ti ti-layout-dashboard" aria-hidden="true"></i> Dashboard</div>
+      <div class="nav-item" onclick="setView('sensors')"><i class="ti ti-cpu" aria-hidden="true"></i> Sensors</div>
+      <div class="nav-item" onclick="setView('alerts')"><i class="ti ti-bell" aria-hidden="true"></i> Alerts</div>
+      <div class="nav-item" onclick="setView('forecast')"><i class="ti ti-chart-line" aria-hidden="true"></i> Trends & Forecast</div>
+      <div class="nav-item" onclick="setView('qa')"><i class="ti ti-message-circle" aria-hidden="true"></i> Ask the Agent</div>
+      <div class="nav-item" onclick="setView('ingest')"><i class="ti ti-upload" aria-hidden="true"></i> Data Ingest</div>
+      <div class="nav-item" onclick="setView('report')"><i class="ti ti-file-text" aria-hidden="true"></i> Report</div>
+      <div class="nav-section">System</div>
+      <div class="nav-item" onclick="setView('settings')"><i class="ti ti-settings" aria-hidden="true"></i> Settings</div>
+    </div>
+    <div class="content">
+      <div id="view-dashboard" class="panel">
+        <div class="metrics-row" id="metricsRow"></div>
+        <div class="card">
+          <div class="card-hdr"><span class="card-title">Environmental — last 30 readings</span><span class="badge b-ok" id="envStatus">Normal</span></div>
+          <div class="chart-wrap"><canvas id="envChart" role="img" aria-label="Line chart of temperature, humidity, and air quality index over recent readings"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-hdr"><span class="card-title">Recent alerts</span><a style="font-size:11px;color:var(--teal);cursor:pointer" onclick="setView('alerts')">View all</a></div>
+          <div class="alert-list" id="dashAlerts"></div>
+        </div>
+      </div>
+
+      <div id="view-sensors" class="panel" style="display:none">
+        <div class="card-hdr" style="padding:0 0 4px"><span class="card-title" style="font-size:15px">Sensor Registry</span>
+          <div class="sim-controls"><label><input type="checkbox" id="showOffline"> Show offline</label></div>
+        </div>
+        <div class="sensor-grid" id="sensorGrid"></div>
+      </div>
+
+      <div id="view-alerts" class="panel" style="display:none">
+        <div class="card-hdr" style="padding:0 0 4px"><span class="card-title" style="font-size:15px">Alert Log</span><span class="badge b-ok">Last 24 h</span></div>
+        <div class="alert-list" id="allAlerts"></div>
+      </div>
+
+      <div id="view-forecast" class="panel" style="display:none">
+        <div class="card">
+          <div class="card-hdr"><span class="card-title">Temperature forecast — next 7 readings</span><span class="badge b-info">AI forecast</span></div>
+          <div class="forecast-row" id="forecastRow"></div>
+        </div>
+        <div class="card">
+          <div class="card-hdr"><span class="card-title">Anomaly score over time</span></div>
+          <div class="chart-wrap"><canvas id="anomChart" role="img" aria-label="Anomaly score over recent sensor readings"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-hdr"><span class="card-title">SCADA signal trend</span></div>
+          <div class="chart-wrap"><canvas id="scadaChart" role="img" aria-label="SCADA pressure and flow rate over time"></canvas></div>
+        </div>
+      </div>
+
+      <div id="view-qa" class="panel" style="display:none;flex-direction:column">
+        <div class="quick-chips" id="quickChips"></div>
+        <div class="chat-log" id="chatLog"></div>
+        <div class="input-row">
+          <input class="chat-input" id="qaInput" placeholder="Ask about sensor data, anomalies, forecasts..." onkeydown="if(event.key==='Enter')sendQA()">
+          <button class="send-btn" id="qaBtn" onclick="sendQA()"><i class="ti ti-send" aria-hidden="true"></i> Ask ↗</button>
+        </div>
+      </div>
+
+      <div id="view-ingest" class="panel" style="display:none">
+        <div class="card">
+          <div class="card-hdr"><span class="card-title">Data input mode</span></div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+              <i class="ti ti-file-upload" aria-hidden="true"></i>
+              Drop CSV / JSON here, or click to browse
+              <input type="file" id="fileInput" accept=".csv,.json" style="display:none" onchange="handleFile(this)">
+            </div>
+            <div style="font-size:12px;color:var(--color-text-secondary);text-align:center">or paste raw data below</div>
+            <textarea id="pasteArea" placeholder='[{"sensor":"TMP-01","value":23.4,"ts":"2024-01-15T10:00:00Z"},...]' style="font-size:12px;font-family:var(--font-mono);height:100px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:8px;background:var(--color-background-primary);color:var(--color-text-primary);resize:vertical"></textarea>
+            <button class="send-btn" onclick="ingestPaste()" style="align-self:flex-start"><i class="ti ti-database-import" aria-hidden="true"></i> Ingest data</button>
+          </div>
+        </div>
+        <div class="card" id="ingestResult" style="display:none">
+          <div class="card-hdr"><span class="card-title">Ingestion result</span><span class="badge b-ok" id="ingestBadge"></span></div>
+          <div id="ingestBody" style="font-size:13px;color:var(--color-text-secondary)"></div>
+        </div>
+      </div>
+
+      <div id="view-report" class="panel" style="display:none">
+        <div class="card">
+          <div class="card-hdr"><span class="card-title">Auto-generated sensor report</span>
+            <button class="send-btn" id="rptBtn" onclick="generateReport()"><i class="ti ti-report" aria-hidden="true"></i> Regenerate ↗</button>
+          </div>
+          <div id="reportContent" style="font-size:13px;color:var(--color-text-secondary)">Click "Regenerate" to produce an AI-written report based on current sensor data.</div>
+        </div>
+      </div>
+
+      <div id="view-settings" class="panel" style="display:none">
+        <div class="card">
+          <div class="card-hdr"><span class="card-title">Simulation settings</span></div>
+          <div style="display:flex;flex-direction:column;gap:10px;font-size:13px">
+            <label style="display:flex;align-items:center;gap:8px">Anomaly injection rate
+              <input type="range" min="0" max="50" value="15" id="anomRate" style="flex:1" oninput="document.getElementById('anomRateOut').textContent=this.value+'%'">
+              <span id="anomRateOut" style="min-width:32px">15%</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:8px">Update interval (s)
+              <input type="range" min="2" max="10" value="4" id="intervalSlider" oninput="document.getElementById('intervalOut').textContent=this.value+'s'">
+              <span id="intervalOut" style="min-width:24px">4s</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="scadaToggle" checked> Enable SCADA signal simulation</label>
+            <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="gpsToggle" checked> Enable GPS/motion sensors</label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const SENSORS = [
+  {id:'TMP-01',name:'Temperature',unit:'°C',loc:'Zone A',type:'env',base:22,range:4,status:'ok'},
+  {id:'HUM-01',name:'Humidity',unit:'%',loc:'Zone A',type:'env',base:55,range:8,status:'ok'},
+  {id:'AQI-01',name:'Air Quality',unit:'AQI',loc:'Zone B',type:'env',base:42,range:15,status:'warn'},
+  {id:'CO2-01',name:'CO₂',unit:'ppm',loc:'Zone B',type:'env',base:410,range:30,status:'ok'},
+  {id:'GPS-01',name:'Lat',unit:'°',loc:'Unit 1',type:'gps',base:29.651,range:0.002,status:'ok'},
+  {id:'GPS-02',name:'Lon',unit:'°',loc:'Unit 1',type:'gps',base:-82.325,range:0.003,status:'ok'},
+  {id:'MOT-01',name:'Vibration',unit:'g',loc:'Unit 2',type:'motion',base:0.8,range:0.5,status:'ok'},
+  {id:'ACC-01',name:'Acceleration',unit:'m/s²',loc:'Unit 2',type:'motion',base:1.2,range:0.4,status:'ok'},
+  {id:'PRS-01',name:'Pressure',unit:'bar',loc:'Line 1',type:'scada',base:3.4,range:0.6,status:'ok'},
+  {id:'FLW-01',name:'Flow Rate',unit:'L/m',loc:'Line 1',type:'scada',base:120,range:20,status:'ok'},
+  {id:'VLT-01',name:'Voltage',unit:'V',loc:'Panel A',type:'scada',base:230,range:5,status:'ok'},
+  {id:'CUR-01',name:'Current',unit:'A',loc:'Panel A',type:'scada',base:18,range:3,status:'offline'},
+];
+
+let sensorValues = {};
+let historyBuf = {env:[],anom:[],scada:[]};
+const MAX_HIST = 30;
+let alertLog = [];
+let currentView = 'dashboard';
+let envChartInst, anomChartInst, scadaChartInst;
+
+function rnd(n){return Math.round(n*100)/100;}
+function sim(s){
+  let v = s.base + (Math.random()-0.5)*2*s.range;
+  let anomRate = parseInt(document.getElementById('anomRate')?.value||15);
+  if(Math.random()*100 < anomRate) v += (Math.random()>0.5?1:-1)*s.range*2.2;
+  return rnd(v);
+}
+function delta(id,v){
+  let prev = sensorValues[id];
+  if(prev===undefined) return '';
+  let d = rnd(v-prev);
+  return d>0?`<span class="delta-up">▲${d}</span>`:`<span class="delta-down">▼${Math.abs(d)}</span>`;
+}
+
+function tick(){
+  let prev = {...sensorValues};
+  SENSORS.forEach(s=>{
+    if(s.status==='offline') return;
+    sensorValues[s.id] = sim(s);
+  });
+  let tmp = sensorValues['TMP-01']||22;
+  let hum = sensorValues['HUM-01']||55;
+  let aqi = sensorValues['AQI-01']||42;
+  historyBuf.env.push({tmp,hum,aqi});
+  if(historyBuf.env.length>MAX_HIST) historyBuf.env.shift();
+
+  let anomScore = rnd(Math.abs(tmp-22)/4 + Math.abs(aqi-42)/15)*50;
+  historyBuf.anom.push(rnd(anomScore));
+  if(historyBuf.anom.length>MAX_HIST) historyBuf.anom.shift();
+
+  let prs = sensorValues['PRS-01']||3.4;
+  let flw = sensorValues['FLW-01']||120;
+  historyBuf.scada.push({prs,flw});
+  if(historyBuf.scada.length>MAX_HIST) historyBuf.scada.shift();
+
+  checkAlerts();
+  refreshView();
+}
+
+function checkAlerts(){
+  let tmp = sensorValues['TMP-01']||0;
+  let aqi = sensorValues['AQI-01']||0;
+  let prs = sensorValues['PRS-01']||0;
+  let now = new Date().toLocaleTimeString();
+  if(tmp>27){alertLog.unshift({type:'crit',title:`High temp: ${tmp}°C on TMP-01`,time:now,icon:'ti-temperature'});}
+  if(aqi>60){alertLog.unshift({type:'warn',title:`Elevated AQI: ${aqi} on AQI-01`,time:now,icon:'ti-wind'});}
+  if(prs>4.2){alertLog.unshift({type:'crit',title:`Pressure spike: ${prs} bar on PRS-01`,time:now,icon:'ti-gauge'});}
+  if(alertLog.length>20) alertLog = alertLog.slice(0,20);
+}
+
+function renderMetrics(){
+  let el = document.getElementById('metricsRow');
+  if(!el) return;
+  let show = ['TMP-01','HUM-01','AQI-01','PRS-01'];
+  el.innerHTML = show.map(id=>{
+    let s = SENSORS.find(x=>x.id===id);
+    let v = sensorValues[id]!==undefined?sensorValues[id]:'—';
+    let d = delta(id,v);
+    return `<div class="metric-card"><div class="metric-label">${s.name}</div><div class="metric-val">${v}<span class="metric-unit">${s.unit}</span></div><div class="metric-delta">${d}&nbsp;</div></div>`;
+  }).join('');
+}
+
+function renderAlerts(container,alerts,max){
+  if(!container) return;
+  let list = alerts.slice(0,max||5);
+  if(!list.length){container.innerHTML='<div style="font-size:12px;color:var(--color-text-secondary);padding:4px">No active alerts.</div>';return;}
+  container.innerHTML = list.map(a=>{
+    let cls = a.type==='crit'?'alert-crit':a.type==='warn'?'alert-warn':'alert-ok';
+    let icon = a.type==='crit'?'ti-alert-triangle':a.type==='warn'?'ti-info-circle':'ti-check';
+    return `<div class="alert ${cls}"><i class="ti ${icon}" aria-hidden="true"></i><div class="alert-body"><div class="alert-title">${a.title}</div><div class="alert-time">${a.time}</div></div></div>`;
+  }).join('');
+}
+
+function renderSensors(){
+  let el = document.getElementById('sensorGrid');
+  if(!el) return;
+  let showOff = document.getElementById('showOffline')?.checked;
+  let list = showOff ? SENSORS : SENSORS.filter(s=>s.status!=='offline');
+  el.innerHTML = list.map(s=>{
+    let v = s.status==='offline'?'—':(sensorValues[s.id]!==undefined?sensorValues[s.id]:'…');
+    let sc = s.status==='offline'?'s-err':s.status==='warn'?'s-warn':'s-ok';
+    return `<div class="sensor-tile"><div class="sensor-name"><span class="sensor-status ${sc}"></span>${s.name}</div><div class="sensor-val">${v}<span class="metric-unit" style="font-size:12px;color:var(--color-text-secondary)">${s.unit}</span></div><div class="sensor-loc">${s.id} · ${s.loc}</div></div>`;
+  }).join('');
+}
+
+function renderForecast(){
+  let el = document.getElementById('forecastRow');
+  if(!el) return;
+  let base = sensorValues['TMP-01']||22;
+  let labels = ['Now','+1','+2','+3','+4','+5','+6'];
+  let vals = labels.map((_,i)=>rnd(base + (Math.random()-0.45)*1.5*i));
+  el.innerHTML = vals.map((v,i)=>{
+    let trend = i===0?'':(v>vals[i-1]?'▲':'▼');
+    let tcol = v>25?'color:var(--red)':v<19?'color:var(--blue)':'color:var(--teal)';
+    return `<div class="fc-day"><div class="fc-label">${labels[i]}</div><div class="fc-val" style="${tcol}">${v}°C</div><div class="fc-sub">${trend}</div></div>`;
+  }).join('');
+}
+
+function updateEnvChart(){
+  let h = historyBuf.env;
+  if(!h.length||!envChartInst) return;
+  let labels = h.map((_,i)=>i+1);
+  envChartInst.data.labels = labels;
+  envChartInst.data.datasets[0].data = h.map(x=>x.tmp);
+  envChartInst.data.datasets[1].data = h.map(x=>x.hum/10);
+  envChartInst.data.datasets[2].data = h.map(x=>x.aqi);
+  envChartInst.update('none');
+}
+
+function updateAnomChart(){
+  let h = historyBuf.anom;
+  if(!h.length||!anomChartInst) return;
+  anomChartInst.data.labels = h.map((_,i)=>i+1);
+  anomChartInst.data.datasets[0].data = h;
+  anomChartInst.update('none');
+}
+
+function updateScadaChart(){
+  let h = historyBuf.scada;
+  if(!h.length||!scadaChartInst) return;
+  scadaChartInst.data.labels = h.map((_,i)=>i+1);
+  scadaChartInst.data.datasets[0].data = h.map(x=>x.prs);
+  scadaChartInst.data.datasets[1].data = h.map(x=>x.flw/40);
+  scadaChartInst.update('none');
+}
+
+function refreshView(){
+  if(currentView==='dashboard'){
+    renderMetrics();
+    renderAlerts(document.getElementById('dashAlerts'),alertLog,4);
+    updateEnvChart();
+    document.getElementById('alertBadge').textContent = alertLog.length+' alerts';
+  } else if(currentView==='sensors'){
+    renderSensors();
+  } else if(currentView==='alerts'){
+    renderAlerts(document.getElementById('allAlerts'),alertLog,20);
+  } else if(currentView==='forecast'){
+    renderForecast();
+    updateAnomChart();
+    updateScadaChart();
+  }
+}
+
+function setView(v){
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('[onclick]').forEach(el=>{if(el.getAttribute('onclick')==='setView(\''+v+'\')') el.classList.add('active');});
+  document.querySelectorAll('[id^=view-]').forEach(el=>el.style.display='none');
+  let panel = document.getElementById('view-'+v);
+  if(panel) panel.style.display='flex';
+  currentView = v;
+  if(v==='forecast'){setTimeout(()=>{initCharts();renderForecast();},50);}
+  if(v==='dashboard'){setTimeout(()=>{initEnvChart();},50);}
+  refreshView();
+}
+
+function initEnvChart(){
+  let canvas = document.getElementById('envChart');
+  if(!canvas||envChartInst) return;
+  envChartInst = new Chart(canvas,{
+    type:'line',
+    data:{labels:[],datasets:[
+      {label:'Temp (°C)',data:[],borderColor:'#E24B4A',backgroundColor:'rgba(226,75,74,0.07)',tension:0.35,borderWidth:1.5,pointRadius:0},
+      {label:'Humidity (/10)',data:[],borderColor:'#378ADD',backgroundColor:'rgba(55,138,221,0.07)',tension:0.35,borderWidth:1.5,pointRadius:0,borderDash:[4,3]},
+      {label:'AQI',data:[],borderColor:'#BA7517',backgroundColor:'rgba(186,117,23,0.07)',tension:0.35,borderWidth:1.5,pointRadius:0,borderDash:[2,2]},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{ticks:{font:{size:11}},grid:{color:'rgba(0,0,0,0.05)'}}},animation:false}
+  });
+}
+
+function initCharts(){
+  let ac = document.getElementById('anomChart');
+  if(ac&&!anomChartInst){
+    anomChartInst = new Chart(ac,{
+      type:'line',
+      data:{labels:[],datasets:[{label:'Anomaly score',data:[],borderColor:'#E24B4A',backgroundColor:'rgba(226,75,74,0.1)',fill:true,tension:0.35,borderWidth:1.5,pointRadius:0}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{min:0,max:100,ticks:{font:{size:11}}}},animation:false}
+    });
+  }
+  let sc = document.getElementById('scadaChart');
+  if(sc&&!scadaChartInst){
+    scadaChartInst = new Chart(sc,{
+      type:'line',
+      data:{labels:[],datasets:[
+        {label:'Pressure (bar)',data:[],borderColor:'#7F77DD',backgroundColor:'rgba(127,119,221,0.07)',tension:0.35,borderWidth:1.5,pointRadius:0},
+        {label:'Flow /40',data:[],borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.07)',tension:0.35,borderWidth:1.5,pointRadius:0,borderDash:[4,3]},
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{ticks:{font:{size:11}}}},animation:false}
+    });
+  }
+}
+
+const QUICK = ['What sensors are anomalous?','Summarize current conditions','Any SCADA alerts?','Forecast temperature trend','What is the air quality?'];
+function initQA(){
+  let chips = document.getElementById('quickChips');
+  if(chips&&!chips.dataset.init){
+    chips.dataset.init='1';
+    chips.innerHTML = QUICK.map(q=>`<span class="chip" onclick="fillQA(this.textContent)">${q}</span>`).join('');
+  }
+}
+function fillQA(q){document.getElementById('qaInput').value=q;sendQA();}
+function addMsg(role,text){
+  let log = document.getElementById('chatLog');
+  let div = document.createElement('div');
+  div.className = 'msg msg-'+role;
+  div.textContent = text;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+  return div;
+}
+
+async function sendQA(){
+  let inp = document.getElementById('qaInput');
+  let btn = document.getElementById('qaBtn');
+  let q = inp.value.trim();
+  if(!q) return;
+  inp.value='';
+  btn.disabled=true;
+  addMsg('user',q);
+  let loading = document.createElement('div');
+  loading.className='msg-loading';
+  loading.textContent='Agent is thinking...';
+  document.getElementById('chatLog').appendChild(loading);
+  document.getElementById('chatLog').scrollTop=9999;
+
+  let snapshot = JSON.stringify({
+    sensors: SENSORS.map(s=>({id:s.id,name:s.name,unit:s.unit,location:s.loc,type:s.type,status:s.status,currentValue:sensorValues[s.id]||null})),
+    recentAlerts: alertLog.slice(0,5),
+    envHistory: historyBuf.env.slice(-10),
+    anomalyHistory: historyBuf.anom.slice(-10)
+  });
+
+  try{
+    let res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        system:`You are a Physical World Sensing Agent. You monitor IoT sensors, environmental data (temperature, humidity, air quality), GPS/motion sensors, and SCADA infrastructure signals. You receive live sensor snapshots and answer user questions about current conditions, anomalies, trends, and recommendations. Be concise, factual, and professional. Highlight anomalies clearly. Format numbers with units.`,
+        messages:[{role:'user',content:`Current sensor snapshot:\n${snapshot}\n\nUser question: ${q}`}]
+      })
+    });
+    let data = await res.json();
+    let text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n')||'No response.';
+    loading.remove();
+    addMsg('ai',text);
+  } catch(e){
+    loading.remove();
+    addMsg('ai','Error contacting agent. Check connection.');
+  }
+  btn.disabled=false;
+}
+
+async function generateReport(){
+  let btn = document.getElementById('rptBtn');
+  let content = document.getElementById('reportContent');
+  btn.disabled=true;
+  content.innerHTML='<span style="color:var(--color-text-secondary);font-style:italic">Generating report…</span>';
+
+  let snapshot = JSON.stringify({
+    sensors: SENSORS.map(s=>({id:s.id,name:s.name,unit:s.unit,location:s.loc,type:s.type,status:s.status,currentValue:sensorValues[s.id]||null})),
+    alerts: alertLog.slice(0,10),
+    envTrend: historyBuf.env.slice(-15),
+    anomalyTrend: historyBuf.anom.slice(-15)
+  });
+
+  try{
+    let res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        system:`You are a Physical World Sensing Agent. Write a structured operational report based on sensor data. Include: Executive Summary, Environmental Status, Infrastructure Status (SCADA), Active Alerts & Anomalies, Trend Analysis, and Recommendations. Be concise and professional. Use plain text formatting (no markdown headers, use ALL CAPS for section titles).`,
+        messages:[{role:'user',content:`Generate a sensor operations report from this data:\n${snapshot}`}]
+      })
+    });
+    let data = await res.json();
+    let text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n')||'No report generated.';
+    content.innerHTML = `<div class="report-block">${text}</div>`;
+  } catch(e){
+    content.innerHTML='<span style="color:var(--red)">Error generating report.</span>';
+  }
+  btn.disabled=false;
+}
+
+function handleFile(input){
+  let f = input.files[0];
+  if(!f) return;
+  let reader = new FileReader();
+  reader.onload = e=>{
+    try{
+      let parsed = JSON.parse(e.target.result);
+      let count = Array.isArray(parsed)?parsed.length:1;
+      showIngest(count+' records parsed from '+f.name,'Ingested successfully');
+    } catch(_){
+      let lines = e.target.result.split('\n').length;
+      showIngest(lines+' rows from CSV: '+f.name,'CSV ingested');
+    }
+  };
+  reader.readAsText(f);
+}
+
+function ingestPaste(){
+  let txt = document.getElementById('pasteArea').value.trim();
+  if(!txt){alert('Paste some data first.');return;}
+  try{
+    let parsed = JSON.parse(txt);
+    let count = Array.isArray(parsed)?parsed.length:1;
+    showIngest(count+' records ingested from pasted data','Parsed OK');
+  } catch(_){
+    showIngest('Raw text received ('+txt.length+' chars)','Text ingested');
+  }
+}
+
+function showIngest(msg,badge){
+  let r = document.getElementById('ingestResult');
+  document.getElementById('ingestBadge').textContent=badge;
+  document.getElementById('ingestBody').textContent=msg;
+  r.style.display='block';
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  for(let i=0;i<MAX_HIST;i++) tick();
+  initEnvChart();
+  initQA();
+  updateEnvChart();
+  let ms = parseInt(document.getElementById('intervalSlider')?.value||4)*1000;
+  setInterval(()=>{
+    let s = parseInt(document.getElementById('intervalSlider')?.value||4)*1000;
+    tick();
+  },4000);
+  document.getElementById('showOffline')?.addEventListener('change',renderSensors);
+  document.getElementById('view-qa').addEventListener('click',initQA);
+});
+</script>
+</body>
+</html>
