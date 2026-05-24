@@ -1,0 +1,523 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-sans, system-ui, sans-serif); background: transparent; color: var(--color-text-primary); }
+
+  .agent-wrap { max-width: 680px; margin: 0 auto; padding: 1.5rem 0 2rem; }
+
+  .agent-header { margin-bottom: 1.5rem; }
+  .agent-header h1 { font-size: 18px; font-weight: 500; color: var(--color-text-primary); display: flex; align-items: center; gap: 10px; }
+  .agent-header p { font-size: 13px; color: var(--color-text-secondary); margin-top: 4px; }
+  .badge-header { background: #EEEDFE; color: #3C3489; font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 20px; letter-spacing: 0.03em; }
+
+  .tabs { display: flex; gap: 2px; margin-bottom: 1.25rem; background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 4px; }
+  .tab { flex: 1; padding: 7px 0; font-size: 13px; font-weight: 500; text-align: center; cursor: pointer; border-radius: 6px; border: none; background: transparent; color: var(--color-text-secondary); transition: all 0.15s; }
+  .tab.active { background: var(--color-background-primary); color: var(--color-text-primary); border: 0.5px solid var(--color-border-tertiary); }
+  .tab:hover:not(.active) { color: var(--color-text-primary); }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1.25rem; margin-bottom: 1rem; }
+
+  label { font-size: 13px; color: var(--color-text-secondary); display: block; margin-bottom: 6px; font-weight: 500; }
+
+  textarea { width: 100%; min-height: 140px; font-size: 14px; padding: 10px 12px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-tertiary); background: var(--color-background-secondary); color: var(--color-text-primary); font-family: inherit; resize: vertical; }
+  textarea:focus { outline: none; border-color: var(--color-border-primary); }
+
+  input[type=text], input[type=url] { width: 100%; height: 38px; font-size: 14px; padding: 0 12px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-tertiary); background: var(--color-background-secondary); color: var(--color-text-primary); font-family: inherit; }
+  input:focus { outline: none; border-color: var(--color-border-primary); }
+
+  select { width: 100%; height: 38px; font-size: 14px; padding: 0 12px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-tertiary); background: var(--color-background-secondary); color: var(--color-text-primary); font-family: inherit; appearance: none; cursor: pointer; }
+
+  .form-row { margin-bottom: 1rem; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1rem; }
+
+  .upload-zone { border: 1px dashed var(--color-border-secondary); border-radius: var(--border-radius-md); padding: 2rem; text-align: center; cursor: pointer; background: var(--color-background-secondary); transition: all 0.15s; }
+  .upload-zone:hover { border-color: #7F77DD; background: #EEEDFE; }
+  .upload-zone i { font-size: 28px; color: var(--color-text-tertiary); display: block; margin-bottom: 8px; }
+  .upload-zone p { font-size: 13px; color: var(--color-text-secondary); }
+  .upload-zone input { display: none; }
+  .upload-zone.has-file { border-color: #1D9E75; background: #E1F5EE; }
+  .upload-zone.has-file i, .upload-zone.has-file p { color: #0F6E56; }
+
+  .jurisdiction-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .chip { font-size: 12px; padding: 4px 12px; border-radius: 20px; cursor: pointer; border: 0.5px solid var(--color-border-secondary); background: var(--color-background-secondary); color: var(--color-text-secondary); transition: all 0.15s; user-select: none; }
+  .chip.selected { background: #EEEDFE; color: #3C3489; border-color: #AFA9EC; }
+
+  .analyze-btn { width: 100%; padding: 11px; font-size: 14px; font-weight: 500; border-radius: var(--border-radius-md); border: none; background: #534AB7; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.15s; }
+  .analyze-btn:hover { background: #3C3489; }
+  .analyze-btn:active { transform: scale(0.99); }
+  .analyze-btn:disabled { background: var(--color-background-secondary); color: var(--color-text-tertiary); cursor: not-allowed; }
+
+  .loading-bar { display: none; background: var(--color-background-secondary); border-radius: 4px; height: 4px; overflow: hidden; margin: 12px 0; }
+  .loading-bar.active { display: block; }
+  .loading-bar-inner { height: 100%; background: linear-gradient(90deg, #534AB7 0%, #AFA9EC 50%, #534AB7 100%); background-size: 200% 100%; animation: shimmer 1.4s infinite; width: 100%; }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  .loading-status { font-size: 13px; color: var(--color-text-secondary); text-align: center; padding: 6px 0; display: none; }
+  .loading-status.active { display: block; }
+
+  .results-wrap { margin-top: 1.5rem; }
+  .results-wrap h2 { font-size: 16px; font-weight: 500; margin-bottom: 1rem; display: flex; align-items: center; gap: 8px; }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 1.25rem; }
+  .metric-card { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 12px 14px; }
+  .metric-card .metric-label { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px; }
+  .metric-card .metric-val { font-size: 20px; font-weight: 500; }
+  .metric-card.red .metric-val { color: #A32D2D; }
+  .metric-card.amber .metric-val { color: #854F0B; }
+  .metric-card.green .metric-val { color: #3B6D11; }
+  .metric-card.purple .metric-val { color: #534AB7; }
+
+  .risk-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 20px; }
+  .risk-high { background: #FCEBEB; color: #A32D2D; }
+  .risk-medium { background: #FAEEDA; color: #854F0B; }
+  .risk-low { background: #EAF3DE; color: #3B6D11; }
+  .risk-info { background: #EEEDFE; color: #3C3489; }
+
+  .finding-card { border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 14px 16px; margin-bottom: 10px; background: var(--color-background-primary); }
+  .finding-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+  .finding-title { font-size: 14px; font-weight: 500; color: var(--color-text-primary); }
+  .finding-reg { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 6px; display: flex; align-items: center; gap: 5px; }
+  .finding-desc { font-size: 13px; color: var(--color-text-secondary); line-height: 1.6; }
+  .finding-rec { margin-top: 10px; padding: 10px 12px; background: var(--color-background-secondary); border-radius: var(--border-radius-md); font-size: 13px; color: var(--color-text-primary); border-left: 2px solid #7F77DD; }
+  .finding-rec strong { color: #534AB7; font-weight: 500; }
+
+  .overall-score { display: flex; align-items: center; gap: 16px; background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 14px 18px; margin-bottom: 1.25rem; }
+  .score-circle { width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 500; flex-shrink: 0; }
+  .score-circle.good { background: #EAF3DE; color: #3B6D11; }
+  .score-circle.fair { background: #FAEEDA; color: #854F0B; }
+  .score-circle.poor { background: #FCEBEB; color: #A32D2D; }
+  .score-info { flex: 1; }
+  .score-info h3 { font-size: 14px; font-weight: 500; margin-bottom: 2px; }
+  .score-info p { font-size: 13px; color: var(--color-text-secondary); }
+
+  .action-row { display: flex; gap: 8px; margin-top: 1rem; }
+  .action-btn { flex: 1; padding: 9px; font-size: 13px; font-weight: 500; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: var(--color-background-secondary); color: var(--color-text-primary); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.15s; }
+  .action-btn:hover { background: var(--color-background-primary); border-color: var(--color-border-primary); }
+
+  .empty-state { text-align: center; padding: 3rem 1rem; color: var(--color-text-secondary); }
+  .empty-state i { font-size: 36px; display: block; margin-bottom: 12px; color: var(--color-text-tertiary); }
+  .empty-state p { font-size: 14px; }
+
+  .error-box { background: #FCEBEB; border: 0.5px solid #F09595; border-radius: var(--border-radius-md); padding: 12px 16px; color: #A32D2D; font-size: 13px; margin-top: 12px; display: none; }
+  .error-box.active { display: block; }
+
+  .section-divider { font-size: 13px; font-weight: 500; color: var(--color-text-secondary); margin: 1.25rem 0 0.75rem; display: flex; align-items: center; gap: 8px; }
+  .section-divider::after { content: ''; flex: 1; height: 0.5px; background: var(--color-border-tertiary); }
+</style>
+</head>
+<body>
+<h2 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">Legal Compliance Intelligence Agent — analyze policies, contracts, and documents for regulatory compliance risks</h2>
+
+<div class="agent-wrap">
+
+  <div class="agent-header">
+    <h1>
+      <i class="ti ti-shield-check" style="font-size:20px;color:#534AB7" aria-hidden="true"></i>
+      Legal Compliance Intelligence Agent
+      <span class="badge-header">AI-Powered</span>
+    </h1>
+    <p>Analyze text, documents, URLs, or structured forms for regulatory compliance risks — GDPR, HIPAA, CCPA, SOX, OSHA, and more.</p>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" onclick="switchTab('text')" role="tab" aria-selected="true">
+      <i class="ti ti-align-left" style="font-size:13px;margin-right:4px" aria-hidden="true"></i>Text
+    </button>
+    <button class="tab" onclick="switchTab('document')" role="tab">
+      <i class="ti ti-file-text" style="font-size:13px;margin-right:4px" aria-hidden="true"></i>Document
+    </button>
+    <button class="tab" onclick="switchTab('url')" role="tab">
+      <i class="ti ti-world" style="font-size:13px;margin-right:4px" aria-hidden="true"></i>URL
+    </button>
+    <button class="tab" onclick="switchTab('form')" role="tab">
+      <i class="ti ti-list-check" style="font-size:13px;margin-right:4px" aria-hidden="true"></i>Structured Form
+    </button>
+  </div>
+
+  <!-- Text Panel -->
+  <div id="panel-text" class="panel active">
+    <div class="card">
+      <div class="form-row">
+        <label>Paste your policy, contract, or any legal text</label>
+        <textarea id="text-input" placeholder="e.g. Our platform collects user email addresses, browsing behavior, and device identifiers for targeted advertising. Data is retained indefinitely and may be shared with third-party analytics providers without explicit user consent..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- Document Panel -->
+  <div id="panel-document" class="panel">
+    <div class="card">
+      <label>Upload a PDF or Word document</label>
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+        <i class="ti ti-cloud-upload" aria-hidden="true"></i>
+        <p id="upload-label">Click to upload PDF or DOCX</p>
+        <input type="file" id="file-input" accept=".pdf,.doc,.docx" onchange="handleFileUpload(event)" />
+      </div>
+      <p style="font-size:12px;color:var(--color-text-tertiary);margin-top:8px;">Max 10MB. Text content will be extracted and analyzed for compliance risks.</p>
+    </div>
+  </div>
+
+  <!-- URL Panel -->
+  <div id="panel-url" class="panel">
+    <div class="card">
+      <div class="form-row">
+        <label>Website or document URL</label>
+        <input type="url" id="url-input" placeholder="https://example.com/privacy-policy" />
+      </div>
+      <p style="font-size:12px;color:var(--color-text-tertiary);">The agent will fetch the page content and analyze it for compliance issues.</p>
+    </div>
+  </div>
+
+  <!-- Structured Form Panel -->
+  <div id="panel-form" class="panel">
+    <div class="card">
+      <div class="form-grid">
+        <div>
+          <label>Organization type</label>
+          <select id="org-type">
+            <option value="">Select...</option>
+            <option>Healthcare provider</option>
+            <option>Financial institution</option>
+            <option>E-commerce / retail</option>
+            <option>SaaS / technology</option>
+            <option>Government / public sector</option>
+            <option>Nonprofit</option>
+            <option>Manufacturing</option>
+          </select>
+        </div>
+        <div>
+          <label>Document type</label>
+          <select id="doc-type">
+            <option value="">Select...</option>
+            <option>Privacy policy</option>
+            <option>Terms of service</option>
+            <option>Employment contract</option>
+            <option>Vendor agreement</option>
+            <option>Data processing agreement</option>
+            <option>Internal policy / SOP</option>
+            <option>Consent form</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Data types involved</label>
+        <div class="jurisdiction-chips" id="data-types">
+          <span class="chip" onclick="toggleChip(this)">Personal data (PII)</span>
+          <span class="chip" onclick="toggleChip(this)">Health / medical data</span>
+          <span class="chip" onclick="toggleChip(this)">Financial records</span>
+          <span class="chip" onclick="toggleChip(this)">Biometric data</span>
+          <span class="chip" onclick="toggleChip(this)">Children's data</span>
+          <span class="chip" onclick="toggleChip(this)">Employee data</span>
+          <span class="chip" onclick="toggleChip(this)">Behavioral / tracking</span>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Key concerns (optional free text)</label>
+        <textarea id="form-notes" style="min-height:80px;" placeholder="Describe specific concerns, recent policy changes, or areas you're unsure about..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- Common: Jurisdiction + Framework selectors -->
+  <div class="card" style="margin-top:0;">
+    <div class="form-row">
+      <label>Applicable jurisdictions</label>
+      <div class="jurisdiction-chips" id="jurisdiction-chips">
+        <span class="chip selected" onclick="toggleChip(this)">USA</span>
+        <span class="chip" onclick="toggleChip(this)">European Union (GDPR)</span>
+        <span class="chip" onclick="toggleChip(this)">UK</span>
+        <span class="chip" onclick="toggleChip(this)">California (CCPA)</span>
+        <span class="chip" onclick="toggleChip(this)">Canada (PIPEDA)</span>
+        <span class="chip" onclick="toggleChip(this)">Australia</span>
+        <span class="chip" onclick="toggleChip(this)">Brazil (LGPD)</span>
+      </div>
+    </div>
+    <div class="form-row" style="margin-bottom:0;">
+      <label>Regulatory frameworks to check</label>
+      <div class="jurisdiction-chips" id="framework-chips">
+        <span class="chip selected" onclick="toggleChip(this)">GDPR</span>
+        <span class="chip selected" onclick="toggleChip(this)">HIPAA</span>
+        <span class="chip selected" onclick="toggleChip(this)">CCPA</span>
+        <span class="chip" onclick="toggleChip(this)">SOX</span>
+        <span class="chip" onclick="toggleChip(this)">OSHA</span>
+        <span class="chip" onclick="toggleChip(this)">FERPA</span>
+        <span class="chip" onclick="toggleChip(this)">COPPA</span>
+        <span class="chip" onclick="toggleChip(this)">PCI-DSS</span>
+        <span class="chip" onclick="toggleChip(this)">ADA / Section 508</span>
+      </div>
+    </div>
+  </div>
+
+  <button class="analyze-btn" id="analyze-btn" onclick="runAnalysis()">
+    <i class="ti ti-search" aria-hidden="true"></i> Analyze for compliance risks ↗
+  </button>
+  <div class="loading-bar" id="loading-bar"><div class="loading-bar-inner"></div></div>
+  <div class="loading-status" id="loading-status">Reviewing document against selected frameworks...</div>
+  <div class="error-box" id="error-box"></div>
+
+  <!-- Results area -->
+  <div class="results-wrap" id="results-wrap">
+    <div class="empty-state">
+      <i class="ti ti-file-search" aria-hidden="true"></i>
+      <p>Submit content above to generate a compliance analysis report.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let currentTab = 'text';
+let uploadedFileText = '';
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    const tabs = ['text','document','url','form'];
+    t.classList.toggle('active', tabs[i] === tab);
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+}
+
+function toggleChip(el) {
+  el.classList.toggle('selected');
+}
+
+function handleFileUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const zone = document.getElementById('upload-zone');
+  const label = document.getElementById('upload-label');
+  zone.classList.add('has-file');
+  label.textContent = file.name + ' (' + (file.size / 1024).toFixed(0) + ' KB)';
+
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    uploadedFileText = '[Uploaded file: ' + file.name + ']\n\n' +
+      'Note: For this demo, the filename and type are sent. In production, extract text server-side.\n' +
+      'File size: ' + file.size + ' bytes';
+  };
+  reader.readAsText(file);
+}
+
+function getSelectedChips(containerId) {
+  return Array.from(document.querySelectorAll('#' + containerId + ' .chip.selected')).map(c => c.textContent.trim()).join(', ');
+}
+
+function getContent() {
+  if (currentTab === 'text') return document.getElementById('text-input').value.trim();
+  if (currentTab === 'document') return uploadedFileText || 'No file uploaded';
+  if (currentTab === 'url') return 'URL: ' + (document.getElementById('url-input').value.trim() || 'No URL provided');
+  if (currentTab === 'form') {
+    const org = document.getElementById('org-type').value;
+    const doc = document.getElementById('doc-type').value;
+    const data = getSelectedChips('data-types');
+    const notes = document.getElementById('form-notes').value.trim();
+    return `Organization type: ${org || 'Not specified'}
+Document type: ${doc || 'Not specified'}
+Data types involved: ${data || 'None selected'}
+Additional context: ${notes || 'None'}`;
+  }
+  return '';
+}
+
+async function runAnalysis() {
+  const content = getContent();
+  if (!content || content === 'No file uploaded' || content === 'URL: No URL provided' || content === 'URL: ') {
+    showError('Please provide content to analyze — paste text, upload a document, enter a URL, or fill the form.');
+    return;
+  }
+
+  const jurisdictions = getSelectedChips('jurisdiction-chips');
+  const frameworks = getSelectedChips('framework-chips');
+
+  if (!frameworks) {
+    showError('Please select at least one regulatory framework to check against.');
+    return;
+  }
+
+  hideError();
+  setLoading(true);
+
+  const systemPrompt = `You are a senior legal compliance analyst with expertise in data privacy, employment law, financial regulation, and environmental compliance. Your role is to analyze provided content and identify compliance risks.
+
+CRITICAL: Respond ONLY with a valid JSON object — no preamble, no markdown fences, no explanation outside the JSON.
+
+Return this exact structure:
+{
+  "overallScore": <integer 0-100, higher = more compliant>,
+  "riskLevel": "<Critical|High|Medium|Low>",
+  "summary": "<2-3 sentence executive summary>",
+  "findings": [
+    {
+      "id": "<short-id>",
+      "title": "<issue title>",
+      "severity": "<Critical|High|Medium|Low>",
+      "regulation": "<specific regulation/article cited>",
+      "description": "<2-3 sentences explaining the issue>",
+      "recommendation": "<specific, actionable remediation step>"
+    }
+  ],
+  "compliantAreas": ["<area 1>", "<area 2>"],
+  "frameworks_checked": ["<framework>"],
+  "disclaimer": "This analysis is for informational purposes only and does not constitute legal advice."
+}
+
+Provide 3-6 findings, mixing severity levels. Be specific about regulations. If content is minimal or a form description, make reasonable inferences based on the organization/document type.`;
+
+  const userPrompt = `Analyze the following content for compliance risks.
+
+Jurisdictions: ${jurisdictions || 'USA'}
+Regulatory frameworks: ${frameworks}
+Input type: ${currentTab}
+
+Content:
+${content}
+
+Identify all compliance risks, cite specific regulations and articles, and provide actionable recommendations.`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }]
+      })
+    });
+
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error?.message || 'API error');
+
+    const rawText = data.content.map(b => b.text || '').join('');
+    const cleaned = rawText.replace(/```json|```/g, '').trim();
+    const result = JSON.parse(cleaned);
+    renderResults(result, frameworks);
+  } catch (err) {
+    showError('Analysis failed: ' + err.message + '. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+}
+
+function setLoading(on) {
+  document.getElementById('loading-bar').classList.toggle('active', on);
+  document.getElementById('loading-status').classList.toggle('active', on);
+  document.getElementById('analyze-btn').disabled = on;
+  document.getElementById('analyze-btn').innerHTML = on
+    ? '<i class="ti ti-loader-2" aria-hidden="true"></i> Analyzing...'
+    : '<i class="ti ti-search" aria-hidden="true"></i> Analyze for compliance risks ↗';
+}
+
+function showError(msg) {
+  const box = document.getElementById('error-box');
+  box.textContent = msg;
+  box.classList.add('active');
+}
+function hideError() {
+  document.getElementById('error-box').classList.remove('active');
+}
+
+function renderResults(r, frameworksStr) {
+  const wrap = document.getElementById('results-wrap');
+
+  const scoreClass = r.overallScore >= 70 ? 'good' : r.overallScore >= 40 ? 'fair' : 'poor';
+  const scoreLabel = r.overallScore >= 70 ? 'Good compliance posture' : r.overallScore >= 40 ? 'Moderate compliance risk' : 'High compliance risk';
+
+  const sev = { Critical: 0, High: 0, Medium: 0, Low: 0 };
+  (r.findings || []).forEach(f => { if (sev[f.severity] !== undefined) sev[f.severity]++; });
+
+  const badgeMap = { Critical: 'risk-high', High: 'risk-high', Medium: 'risk-medium', Low: 'risk-low' };
+  const iconMap = { Critical: 'ti-alert-octagon', High: 'ti-alert-triangle', Medium: 'ti-info-circle', Low: 'ti-check' };
+
+  const findingsHtml = (r.findings || []).map(f => `
+    <div class="finding-card">
+      <div class="finding-header">
+        <div class="finding-title">${f.title}</div>
+        <span class="risk-badge ${badgeMap[f.severity] || 'risk-info'}">
+          <i class="ti ${iconMap[f.severity] || 'ti-info-circle'}" style="font-size:12px" aria-hidden="true"></i>
+          ${f.severity}
+        </span>
+      </div>
+      <div class="finding-reg"><i class="ti ti-book" style="font-size:13px" aria-hidden="true"></i>${f.regulation}</div>
+      <div class="finding-desc">${f.description}</div>
+      <div class="finding-rec"><strong>Recommendation:</strong> ${f.recommendation}</div>
+    </div>
+  `).join('');
+
+  const compliantHtml = (r.compliantAreas || []).map(a =>
+    `<span class="risk-badge risk-low" style="margin:3px;display:inline-flex;"><i class="ti ti-check" style="font-size:12px" aria-hidden="true"></i> ${a}</span>`
+  ).join('');
+
+  wrap.innerHTML = `
+    <h2>
+      <i class="ti ti-report-analytics" style="color:#534AB7" aria-hidden="true"></i>
+      Compliance Analysis Report
+    </h2>
+
+    <div class="overall-score">
+      <div class="score-circle ${scoreClass}">${r.overallScore}</div>
+      <div class="score-info">
+        <h3>${scoreLabel} — ${r.riskLevel} Risk</h3>
+        <p>${r.summary}</p>
+      </div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="metric-card red">
+        <div class="metric-label">Critical / High</div>
+        <div class="metric-val">${sev.Critical + sev.High}</div>
+      </div>
+      <div class="metric-card amber">
+        <div class="metric-label">Medium issues</div>
+        <div class="metric-val">${sev.Medium}</div>
+      </div>
+      <div class="metric-card green">
+        <div class="metric-label">Low / info</div>
+        <div class="metric-val">${sev.Low}</div>
+      </div>
+      <div class="metric-card purple">
+        <div class="metric-label">Total findings</div>
+        <div class="metric-val">${(r.findings || []).length}</div>
+      </div>
+    </div>
+
+    <div class="section-divider">Findings</div>
+    ${findingsHtml || '<p style="font-size:13px;color:var(--color-text-secondary)">No specific issues identified.</p>'}
+
+    ${compliantHtml ? `<div class="section-divider">Areas of compliance</div><div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:1rem;">${compliantHtml}</div>` : ''}
+
+    <p style="font-size:11px;color:var(--color-text-tertiary);margin-top:1rem;padding:10px 12px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);">
+      <i class="ti ti-info-circle" style="font-size:13px;vertical-align:-2px" aria-hidden="true"></i>
+      ${r.disclaimer || 'This analysis is for informational purposes only and does not constitute legal advice. Consult a qualified attorney for legal decisions.'}
+    </p>
+
+    <div class="action-row">
+      <button class="action-btn" onclick="sendPrompt('Help me fix the highest-severity compliance issues found in this analysis.')">
+        <i class="ti ti-tool" style="font-size:14px" aria-hidden="true"></i> Help me fix these ↗
+      </button>
+      <button class="action-btn" onclick="sendPrompt('Generate a compliance remediation action plan with timelines based on the findings.')">
+        <i class="ti ti-list-check" style="font-size:14px" aria-hidden="true"></i> Make an action plan ↗
+      </button>
+      <button class="action-btn" onclick="copyReport()">
+        <i class="ti ti-copy" style="font-size:14px" aria-hidden="true"></i> Copy report
+      </button>
+    </div>
+  `;
+}
+
+function copyReport() {
+  const wrap = document.getElementById('results-wrap');
+  navigator.clipboard.writeText(wrap.innerText).catch(() => {});
+}
+</script>
+</body>
+</html>
