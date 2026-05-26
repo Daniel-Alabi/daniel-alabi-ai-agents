@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Enterprise Recommendation System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f5f5f5;
+            --bg-tertiary: #efefef;
+            --text-primary: #1a1a1a;
+            --text-secondary: #666666;
+            --text-tertiary: #999999;
+            --border-color: #e0e0e0;
+            --info-bg: #e6f1fb;
+            --info-text: #185fa5;
+            --success-bg: #eaf3de;
+            --success-text: #3b6d11;
+            --warning-bg: #faeeda;
+            --warning-text: #854f0b;
+            --danger-bg: #fcebeb;
+            --danger-text: #a32d2d;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-primary: #1a1a1a;
+                --bg-secondary: #2d2d2d;
+                --bg-tertiary: #3a3a3a;
+                --text-primary: #ffffff;
+                --text-secondary: #b0b0b0;
+                --text-tertiary: #808080;
+                --border-color: #404040;
+            }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--bg-tertiary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        header {
+            background-color: var(--bg-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1.5rem 0;
+            margin-bottom: 1.5rem;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .tab-button {
+            padding: 8px 14px;
+            font-size: 13px;
+            border: 0.5px solid var(--border-color);
+            background-color: transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .tab-button.active {
+            background-color: var(--info-bg);
+            color: var(--info-text);
+            border-color: var(--info-text);
+            font-weight: 500;
+        }
+
+        .tab-button:hover {
+            border-color: var(--text-secondary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .card {
+            background-color: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-secondary {
+            background-color: var(--bg-secondary);
+            border: 0.5px solid var(--border-color);
+        }
+
+        h2, h3, h4 {
+            font-weight: 500;
+            margin-bottom: 1rem;
+        }
+
+        h2 {
+            font-size: 16px;
+        }
+
+        h3 {
+            font-size: 15px;
+        }
+
+        h4 {
+            font-size: 14px;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            color: var(--text-primary);
+            background-color: var(--bg-primary);
+            margin-bottom: 12px;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        button {
+            padding: 8px 14px;
+            font-size: 13px;
+            border: 0.5px solid var(--border-color);
+            background-color: transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        button.primary {
+            background-color: var(--info-bg);
+            color: var(--info-text);
+            border-color: var(--info-text);
+            width: 100%;
+            justify-content: center;
+        }
+
+        button.success {
+            background-color: var(--success-bg);
+            color: var(--success-text);
+            border-color: var(--success-text);
+        }
+
+        button.danger {
+            background-color: var(--danger-bg);
+            color: var(--danger-text);
+            border-color: var(--danger-text);
+        }
+
+        button:hover {
+            opacity: 0.8;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .grid-2 {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .grid-3 {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+
+        .metric-card {
+            background-color: var(--bg-secondary);
+            border-radius: 6px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .metric-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: 500;
+            color: var(--info-text);
+        }
+
+        .recommendation-item {
+            background-color: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 12px;
+        }
+
+        .recommendation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .recommendation-title {
+            font-size: 15px;
+            font-weight: 500;
+            margin: 0 0 4px;
+        }
+
+        .recommendation-meta {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin: 0;
+        }
+
+        .recommendation-score {
+            background-color: var(--bg-secondary);
+            border-radius: 6px;
+            padding: 8px 12px;
+            text-align: center;
+            min-width: 60px;
+        }
+
+        .score-number {
+            font-size: 18px;
+            font-weight: 500;
+            color: var(--info-text);
+        }
+
+        .score-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .recommendation-content {
+            margin: 8px 0;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .recommendation-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 8px;
+            font-size: 12px;
+            margin: 8px 0;
+        }
+
+        .metric-item {
+            color: var(--text-secondary);
+        }
+
+        .metric-item strong {
+            color: var(--info-text);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 2rem 1rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-icon {
+            font-size: 32px;
+            opacity: 0.3;
+            margin-bottom: 8px;
+        }
+
+        .toggle-btn {
+            background-color: transparent;
+            border: none;
+            color: var(--info-text);
+            cursor: pointer;
+            padding: 4px 0;
+            font-size: 13px;
+            margin-bottom: 1rem;
+        }
+
+        .advanced-section {
+            display: none;
+            background-color: var(--bg-primary);
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            border: 0.5px solid var(--border-color);
+        }
+
+        .advanced-section.show {
+            display: block;
+        }
+
+        .info-box {
+            background-color: var(--info-bg);
+            color: var(--info-text);
+            border-radius: 6px;
+            padding: 1rem;
+            font-size: 13px;
+            margin-top: 1rem;
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+        }
+
+        .file-upload-area {
+            border: 0.5px dashed var(--border-color);
+            border-radius: 6px;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            margin-bottom: 12px;
+        }
+
+        .file-upload-area:hover {
+            background-color: var(--bg-secondary);
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .comment-item {
+            font-size: 12px;
+            padding: 4px 0;
+            border-bottom: 0.5px solid var(--border-color);
+        }
+
+        .comment-author {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .comment-text {
+            color: var(--text-secondary);
+        }
+
+        .search-box {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 1.5rem;
+        }
+
+        .search-box input {
+            flex: 1;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            margin-right: 4px;
+            margin-bottom: 4px;
+        }
+
+        .badge.active {
+            background-color: var(--info-bg);
+            color: var(--info-text);
+        }
+
+        .badge.inactive {
+            background-color: var(--bg-secondary);
+            color: var(--text-secondary);
+        }
+
+        .slider-group {
+            margin-bottom: 12px;
+        }
+
+        .slider-group input[type="range"] {
+            width: 100%;
+        }
+
+        .slider-value {
+            font-size: 13px;
+            color: var(--text-secondary);
+            float: right;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>
+                <i class="fas fa-lightbulb"></i>
+                Advanced Recommendation System
+            </h1>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="tabs" id="tabs">
+            <button class="tab-button active" data-tab="discover">
+                <i class="fas fa-search"></i> Discover
+            </button>
+            <button class="tab-button" data-tab="reading-list">
+                <i class="fas fa-bookmark"></i> Reading List
+            </button>
+            <button class="tab-button" data-tab="search">
+                <i class="fas fa-magnifying-glass"></i> Search
+            </button>
+            <button class="tab-button" data-tab="team">
+                <i class="fas fa-users"></i> Team
+            </button>
+            <button class="tab-button" data-tab="admin" id="adminTab">
+                <i class="fas fa-shield"></i> Admin
+            </button>
+            <button class="tab-button" data-tab="settings">
+                <i class="fas fa-gear"></i> Settings
+            </button>
+        </div>
+
+        <!-- DISCOVER TAB -->
+        <div class="tab-content active" id="discover">
+            <div class="card card-secondary">
+                <h2><i class="fas fa-target"></i> Discovery Engine</h2>
+
+                <label>Topics *</label>
+                <textarea id="topics" placeholder="e.g., machine learning, infrastructure"></textarea>
+
+                <label>Keywords (comma-separated)</label>
+                <input type="text" id="keywords" placeholder="e.g., distributed systems, neural networks">
+
+                <div class="grid grid-3">
+                    <div>
+                        <label>Skill Level</label>
+                        <select id="skillLevel">
+                            <option>beginner</option>
+                            <option selected>intermediate</option>
+                            <option>advanced</option>
+                            <option>expert</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Date Range</label>
+                        <select id="dateRange">
+                            <option value="any">any time</option>
+                            <option value="year">last year</option>
+                            <option value="6months">last 6 months</option>
+                            <option value="3months">last 3 months</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Min Author Credibility</label>
+                        <input type="number" id="minCredibility" value="0" min="0" max="100">
+                    </div>
+                </div>
+
+                <button class="toggle-btn" id="advancedToggle">
+                    <i class="fas fa-chevron-down"></i> Advanced Filters
+                </button>
+
+                <div class="advanced-section" id="advancedSection">
+                    <div class="slider-group">
+                        <label>Min Venue Prestige: <span class="slider-value" id="prestigeValue">0</span></label>
+                        <input type="range" id="minPrestige" min="0" max="100" value="0">
+                    </div>
+                    <div class="slider-group">
+                        <label>Min Citations: <span class="slider-value" id="citationsValue">0</span></label>
+                        <input type="range" id="minCitations" min="0" max="200" value="0">
+                    </div>
+                </div>
+
+                <label>Reference Document</label>
+                <div class="file-upload-area" id="fileUploadArea">
+                    <p><i class="fas fa-upload"></i> Click to upload reference document</p>
+                    <p style="font-size: 12px; color: var(--text-secondary);">PDF, TXT, or MD files</p>
+                </div>
+                <input type="file" id="fileInput" class="file-input" accept=".pdf,.txt,.md">
+                <div id="uploadedFile" style="display: none; font-size: 13px; color: var(--info-text); margin-bottom: 12px;">
+                    <i class="fas fa-check-circle"></i> <span id="fileName"></span>
+                </div>
+
+                <button class="primary" id="searchBtn">
+                    <i class="fas fa-search"></i> Find Recommendations
+                </button>
+            </div>
+
+            <div id="resultsContainer"></div>
+        </div>
+
+        <!-- READING LIST TAB -->
+        <div class="tab-content" id="reading-list">
+            <h2><i class="fas fa-bookmark"></i> Your Reading List</h2>
+            <div id="readingListContainer"></div>
+        </div>
+
+        <!-- SEARCH TAB -->
+        <div class="tab-content" id="search">
+            <h2><i class="fas fa-magnifying-glass"></i> Search All Lists</h2>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search by title, author, keyword...">
+                <button id="searchSubmitBtn"><i class="fas fa-search"></i></button>
+            </div>
+            <div id="searchResultsContainer"></div>
+        </div>
+
+        <!-- TEAM TAB -->
+        <div class="tab-content" id="team">
+            <div class="card card-secondary">
+                <h2><i class="fas fa-users"></i> Team Workspace</h2>
+
+                <label>Team ID</label>
+                <input type="text" id="teamId" placeholder="org-team-123">
+
+                <label>Invite Member</label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="memberName" placeholder="Member name" style="flex: 1; margin-bottom: 0;">
+                    <button id="inviteBtn"><i class="fas fa-plus"></i> Invite</button>
+                </div>
+
+                <h3>Team Members</h3>
+                <div id="teamMembersContainer"></div>
+
+                <h3 style="margin-top: 1.5rem;">Team Reading List</h3>
+                <div id="teamListContainer"></div>
+            </div>
+        </div>
+
+        <!-- ADMIN TAB -->
+        <div class="tab-content" id="admin">
+            <h2><i class="fas fa-shield"></i> Admin Dashboard</h2>
+
+            <div class="grid grid-3">
+                <div class="metric-card">
+                    <div class="metric-label">Team Members</div>
+                    <div class="metric-value" id="memberCount">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Pending Approval</div>
+                    <div class="metric-value" id="pendingCount">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Team Recommendations</div>
+                    <div class="metric-value" id="teamRecCount">0</div>
+                </div>
+            </div>
+
+            <h3>Approval Queue</h3>
+            <div id="approvalQueueContainer"></div>
+
+            <h3>Team Activity</h3>
+            <div id="activityContainer"></div>
+        </div>
+
+        <!-- SETTINGS TAB -->
+        <div class="tab-content" id="settings">
+            <div class="card card-secondary">
+                <h2>Account Settings</h2>
+
+                <label>Display Name</label>
+                <input type="text" id="userName" placeholder="Your name">
+
+                <label>User Role</label>
+                <select id="userRole">
+                    <option value="member">Member</option>
+                    <option value="owner">Owner (Admin)</option>
+                </select>
+
+                <label>User ID</label>
+                <input type="text" id="userId" readonly>
+
+                <label>Team ID</label>
+                <input type="text" id="settingsTeamId" placeholder="Leave blank for personal use">
+
+                <button class="danger" id="clearDataBtn">
+                    <i class="fas fa-trash"></i> Clear All Data
+                </button>
+
+                <div class="info-box">
+                    <i class="fas fa-info-circle"></i>
+                    <div>For production, integrate with Firebase, Supabase, or PostgreSQL. See backend guide for implementation.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State Management
+        const state = {
+            userId: localStorage.getItem('rec_user_id') || 'user_' + Math.random().toString(36).substr(2, 9),
+            userName: localStorage.getItem('rec_user_name') || 'You',
+            userRole: localStorage.getItem('rec_user_role') || 'member',
+            teamId: localStorage.getItem('rec_team_id') || '',
+            recommendations: [],
+            readingList: [],
+            teamReadingList: [],
+            teamMembers: [],
+            approvalQueue: [],
+            authorMetrics: {},
+            history: [],
+            votes: {},
+            comments: {}
+        };
+
+        // Load state from localStorage
+        function loadState() {
+            const saved = localStorage.getItem('rec_state');
+            if (saved) {
+                const loaded = JSON.parse(saved);
+                state.readingList = loaded.readingList || [];
+                state.teamReadingList = loaded.teamReadingList || [];
+                state.teamMembers = loaded.teamMembers || [];
+                state.approvalQueue = loaded.approvalQueue || [];
+                state.authorMetrics = loaded.authorMetrics || {};
+                state.history = loaded.history || [];
+                state.votes = loaded.votes || {};
+                state.comments = loaded.comments || {};
+            }
+            updateUI();
+        }
+
+        // Save state to localStorage
+        function saveState() {
+            localStorage.setItem('rec_state', JSON.stringify({
+                readingList: state.readingList,
+                teamReadingList: state.teamReadingList,
+                teamMembers: state.teamMembers,
+                approvalQueue: state.approvalQueue,
+                authorMetrics: state.authorMetrics,
+                history: state.history,
+                votes: state.votes,
+                comments: state.comments
+            }));
+            localStorage.setItem('rec_user_id', state.userId);
+            localStorage.setItem('rec_user_name', state.userName);
+            localStorage.setItem('rec_user_role', state.userRole);
+            localStorage.setItem('rec_team_id', state.teamId);
+        }
+
+        // Tab switching
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', () => {
+                document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                button.classList.add('active');
+                const tab = button.getAttribute('data-tab');
+                document.getElementById(tab).classList.add('active');
+            });
+        });
+
+        // Generate author metrics
+        function generateAuthorMetrics(author) {
+            if (!state.authorMetrics[author]) {
+                state.authorMetrics[author] = {
+                    credibilityScore: Math.round(Math.random() * 40 + 60),
+                    hIndex: Math.round(Math.random() * 30 + 5),
+                    totalCitations: Math.round(Math.random() * 500 + 100),
+                    publicationsPerYear: Math.round(Math.random() * 8 + 2),
+                    venuePrestige: Math.round(Math.random() * 40 + 60),
+                    recentActivity: Math.random() > 0.3 ? 'active' : 'inactive'
+                };
+            }
+            return state.authorMetrics[author];
+        }
+
+        // Mock recommendations
+        function getMockRecommendations() {
+            return [
+                {
+                    id: 'rec_1',
+                    title: 'Scaling ML Systems for Production',
+                    source: 'Dr. Sarah Chen',
+                    type: 'article',
+                    publication_year: 2024,
+                    citations: 45,
+                    url: '#',
+                    relevance: 'Advanced ML scaling patterns and distributed training',
+                    score: 92,
+                    status: 'approved'
+                },
+                {
+                    id: 'rec_2',
+                    title: 'Environmental AI: Applications & Challenges',
+                    source: 'Prof. James Wilson',
+                    type: 'paper',
+                    publication_year: 2023,
+                    citations: 28,
+                    url: '#',
+                    relevance: 'AI applications in environmental monitoring and sustainability',
+                    score: 87,
+                    status: 'approved'
+                },
+                {
+                    id: 'rec_3',
+                    title: 'Infrastructure as Code: Modern DevOps',
+                    source: 'Dr. Michael Zhang',
+                    type: 'book',
+                    publication_year: 2023,
+                    citations: 156,
+                    url: '#',
+                    relevance: 'Comprehensive guide to infrastructure automation',
+                    score: 85,
+                    status: 'approved'
+                }
+            ];
+        }
+
+        // Search for recommendations
+        document.getElementById('searchBtn').addEventListener('click', async () => {
+            const topics = document.getElementById('topics').value;
+            if (!topics.trim()) {
+                alert('Please enter at least one topic');
+                return;
+            }
+
+            state.recommendations = getMockRecommendations();
+            renderRecommendations();
+        });
+
+        // Render recommendations
+        function renderRecommendations() {
+            const container = document.getElementById('resultsContainer');
+            const minCred = parseInt(document.getElementById('minCredibility').value);
+            const minPrestige = parseInt(document.getElementById('minPrestige').value);
+
+            const filtered = state.recommendations.filter(rec => {
+                const metrics = generateAuthorMetrics(rec.source);
+                return metrics.credibilityScore >= minCred && metrics.venuePrestige >= minPrestige;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="empty-icon"><i class="fas fa-search"></i></div><p>No recommendations found</p></div>';
+                return;
+            }
+
+            container.innerHTML = `<h3>${filtered.length} Results</h3>` + filtered.map(rec => {
+                const metrics = generateAuthorMetrics(rec.source);
+                const isSaved = state.readingList.some(r => r.id === rec.id);
+                return `
+                    <div class="recommendation-item">
+                        <div class="recommendation-header">
+                            <div style="flex: 1;">
+                                <p class="recommendation-title">${rec.title}</p>
+                                <p class="recommendation-meta">${rec.source} • ${rec.type} • ${rec.publication_year}</p>
+                                <div class="metrics-grid">
+                                    <div class="metric-item"><i class="fas fa-quote"></i> Citations: <strong>${rec.citations}</strong></div>
+                                    <div class="metric-item"><i class="fas fa-medal"></i> Author: <strong>${metrics.credibilityScore}</strong></div>
+                                    <div class="metric-item"><i class="fas fa-star"></i> Venue: <strong>${metrics.venuePrestige}</strong></div>
+                                    <div class="metric-item"><i class="fas fa-chart-line"></i> H-Index: <strong>${metrics.hIndex}</strong></div>
+                                </div>
+                            </div>
+                            <div class="recommendation-score">
+                                <div class="score-number">${rec.score}</div>
+                                <div class="score-label">score</div>
+                            </div>
+                        </div>
+                        <p class="recommendation-content">${rec.relevance}</p>
+                        <div class="recommendation-actions">
+                            <button onclick="saveToReadingList('${rec.id}')" class="${isSaved ? 'success' : ''}">
+                                <i class="fas fa-bookmark"></i> ${isSaved ? 'Saved' : 'Save'}
+                            </button>
+                            ${state.teamId ? `<button onclick="submitForApproval('${rec.id}')"><i class="fas fa-send"></i> Submit</button>` : ''}
+                            <a href="${rec.url}" target="_blank" style="color: var(--info-text); text-decoration: none;">View →</a>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Save to reading list
+        function saveToReadingList(recId) {
+            const rec = state.recommendations.find(r => r.id === recId);
+            if (rec && !state.readingList.some(r => r.id === recId)) {
+                state.readingList.push({...rec, savedAt: new Date().toISOString()});
+                saveState();
+                renderRecommendations();
+                renderReadingList();
+            }
+        }
+
+        // Submit for approval
+        function submitForApproval(recId) {
+            const rec = state.recommendations.find(r => r.id === recId);
+            if (rec) {
+                const submission = {...rec, submittedAt: new Date().toISOString(), submittedBy: state.userId, status: 'pending_approval'};
+                state.approvalQueue.push(submission);
+                saveState();
+                alert('Submitted for team approval!');
+            }
+        }
+
+        // Render reading list
+        function renderReadingList() {
+            const container = document.getElementById('readingListContainer');
+            if (state.readingList.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>No saved recommendations yet</p></div>';
+                return;
+            }
+
+            container.innerHTML = state.readingList.map((item, idx) => `
+                <div class="recommendation-item">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div style="flex: 1;">
+                            <p class="recommendation-title">${item.title}</p>
+                            <p class="recommendation-meta">${item.source} • ${item.type} • Score: ${item.score}</p>
+                            <p style="font-size: 12px; color: var(--text-tertiary);">Saved ${new Date(item.savedAt).toLocaleDateString()}</p>
+                        </div>
+                        <button onclick="removeFromReadingList(${idx})" class="danger"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function removeFromReadingList(idx) {
+            state.readingList.splice(idx, 1);
+            saveState();
+            renderReadingList();
+        }
+
+        // Search functionality
+        document.getElementById('searchSubmitBtn').addEventListener('click', () => {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            if (!query.trim()) {
+                document.getElementById('searchResultsContainer').innerHTML = '<div class="empty-state"><p>Enter search terms</p></div>';
+                return;
+            }
+
+            const allItems = [...state.readingList, ...state.teamReadingList];
+            const results = allItems.filter(item =>
+                item.title.toLowerCase().includes(query) ||
+                item.source.toLowerCase().includes(query) ||
+                item.relevance.toLowerCase().includes(query)
+            );
+
+            const container = document.getElementById('searchResultsContainer');
+            if (results.length === 0) {
+                container.innerHTML = `<div class="empty-state"><p>No results found for "${query}"</p></div>`;
+                return;
+            }
+
+            container.innerHTML = `<p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 1rem;">${results.length} results found</p>` +
+                results.map(item => `
+                    <div class="recommendation-item">
+                        <p class="recommendation-title">${item.title}</p>
+                        <p class="recommendation-meta">${item.source} • ${item.type} • Score: ${item.score}</p>
+                        <p class="recommendation-content">${item.relevance}</p>
+                        <p style="font-size: 12px; color: var(--text-tertiary);"><i class="fas fa-user-circle"></i> ${item.addedByName || 'Unknown'}</p>
+                    </div>
+                `).join('');
+        });
+
+        // Team functionality
+        document.getElementById('inviteBtn').addEventListener('click', () => {
+            const name = document.getElementById('memberName').value;
+            if (name.trim()) {
+                state.teamMembers.push({
+                    id: 'user_' + Math.random().toString(36).substr(2, 9),
+                    name,
+                    role: 'member',
+                    joinedAt: new Date().toISOString()
+                });
+                document.getElementById('memberName').value = '';
+                saveState();
+                renderTeamMembers();
+            }
+        });
+
+        function renderTeamMembers() {
+            const container = document.getElementById('teamMembersContainer');
+            container.innerHTML = state.teamMembers.map((member, idx) => `
+                <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <p style="font-size: 13px; font-weight: 500; margin: 0;">${member.name}</p>
+                        <p style="font-size: 12px; color: var(--text-secondary); margin: 0;">${member.role}</p>
+                    </div>
+                    ${member.id !== state.userId ? `<button onclick="removeTeamMember(${idx})" style="padding: 4px 8px;">Remove</button>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function removeTeamMember(idx) {
+            state.teamMembers.splice(idx, 1);
+            saveState();
+            renderTeamMembers();
+        }
+
+        function renderTeamList() {
+            const container = document.getElementById('teamListContainer');
+            if (state.teamReadingList.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>No shared items yet</p></div>';
+                return;
+            }
+
+            container.innerHTML = state.teamReadingList.map((item, idx) => `
+                <div class="recommendation-item">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                        <div style="flex: 1;">
+                            <p class="recommendation-title">${item.title}</p>
+                            <p class="recommendation-meta">${item.source} • ${item.type} • Score: ${item.score}</p>
+                        </div>
+                        <button onclick="voteItem('${item.id}')">👍 ${state.votes[item.id] || 0}</button>
+                    </div>
+                    ${state.comments[item.id] ? `
+                        <div style="margin-top: 8px; padding-top: 8px; border-top: 0.5px solid var(--border-color); font-size: 12px;">
+                            <p style="margin: 0 0 4px;">Comments (${state.comments[item.id].length})</p>
+                            ${state.comments[item.id].slice(0, 2).map(c => `
+                                <p style="margin: 2px 0;"><span style="font-weight: 500;">${c.user}:</span> ${c.text}</p>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        function voteItem(itemId) {
+            state.votes[itemId] = (state.votes[itemId] || 0) + 1;
+            saveState();
+            renderTeamList();
+        }
+
+        // Admin functionality
+        function renderApprovalQueue() {
+            const container = document.getElementById('approvalQueueContainer');
+            const pending = state.approvalQueue.filter(r => r.status === 'pending_approval');
+
+            if (pending.length === 0) {
+                container.innerHTML = '<p style="font-size: 13px; color: var(--text-secondary);">No pending approvals</p>';
+                return;
+            }
+
+            container.innerHTML = pending.map((rec, idx) => `
+                <div class="recommendation-item">
+                    <p class="recommendation-title">${rec.title}</p>
+                    <p class="recommendation-meta">Submitted by ${rec.addedByName || 'Unknown'} • Score: ${rec.score}</p>
+                    <div style="display: flex; gap: 8px; margin-top: 12px;">
+                        <button class="success" onclick="approveRecommendation('${rec.id}')"><i class="fas fa-check"></i> Approve</button>
+                        <button class="danger" onclick="rejectRecommendation('${rec.id}')"><i class="fas fa-times"></i> Reject</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function approveRecommendation(recId) {
+            const rec = state.approvalQueue.find(r => r.id === recId);
+            if (rec) {
+                rec.status = 'approved';
+                rec.approvedBy = state.userId;
+                rec.approvedAt = new Date().toISOString();
+                state.teamReadingList.push(rec);
+                saveState();
+                renderApprovalQueue();
+                renderTeamList();
+                updateAdminStats();
+            }
+        }
+
+        function rejectRecommendation(recId) {
+            const rec = state.approvalQueue.find(r => r.id === recId);
+            if (rec) {
+                rec.status = 'rejected';
+                saveState();
+                renderApprovalQueue();
+                updateAdminStats();
+            }
+        }
+
+        function updateAdminStats() {
+            document.getElementById('memberCount').textContent = state.teamMembers.length;
+            document.getElementById('pendingCount').textContent = state.approvalQueue.filter(r => r.status === 'pending_approval').length;
+            document.getElementById('teamRecCount').textContent = state.teamReadingList.length;
+        }
+
+        function renderActivity() {
+            const container = document.getElementById('activityContainer');
+            const recentActions = state.history.slice(0, 5);
+
+            if (recentActions.length === 0) {
+                container.innerHTML = '<p style="font-size: 13px; color: var(--text-secondary);">No recent activity</p>';
+                return;
+            }
+
+            container.innerHTML = recentActions.map(action => `
+                <div style="font-size: 12px; padding: 8px 0; border-bottom: 0.5px solid var(--border-color);">
+                    <p style="margin: 0; color: var(--text-primary);">Saved: ${action.rec.substring(0, 40)}...</p>
+                    <p style="margin: 0; color: var(--text-secondary); font-size: 11px;">${new Date(action.timestamp).toLocaleDateString()}</p>
+                </div>
+            `).join('');
+        }
+
+        // Settings
+        document.getElementById('clearDataBtn').addEventListener('click', () => {
+            if (confirm('Are you sure you want to clear all data?')) {
+                localStorage.clear();
+                location.reload();
+            }
+        });
+
+        // File upload
+        document.getElementById('fileUploadArea').addEventListener('click', () => {
+            document.getElementById('fileInput').click();
+        });
+
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                document.getElementById('fileName').textContent = file.name;
+                document.getElementById('uploadedFile').style.display = 'block';
+            }
+        });
+
+        // Advanced filters
+        document.getElementById('advancedToggle').addEventListener('click', () => {
+            document.getElementById('advancedSection').classList.toggle('show');
+        });
+
+        document.getElementById('minPrestige').addEventListener('input', (e) => {
+            document.getElementById('prestigeValue').textContent = e.target.value;
+        });
+
+        document.getElementById('minCitations').addEventListener('input', (e) => {
+            document.getElementById('citationsValue').textContent = e.target.value;
+        });
+
+        // Update UI
+        function updateUI() {
+            document.getElementById('userId').value = state.userId;
+            document.getElementById('userName').value = state.userName;
+            document.getElementById('userRole').value = state.userRole;
+            document.getElementById('teamId').value = state.teamId;
+            document.getElementById('settingsTeamId').value = state.teamId;
+
+            // Show/hide admin tab
+            if (state.userRole === 'owner') {
+                document.getElementById('adminTab').style.display = 'block';
+            } else {
+                document.getElementById('adminTab').style.display = 'none';
+            }
+
+            renderTeamMembers();
+            renderTeamList();
+            renderReadingList();
+            updateAdminStats();
+            renderApprovalQueue();
+            renderActivity();
+        }
+
+        // Save settings
+        document.getElementById('userName').addEventListener('change', (e) => {
+            state.userName = e.target.value;
+            saveState();
+        });
+
+        document.getElementById('userRole').addEventListener('change', (e) => {
+            state.userRole = e.target.value;
+            saveState();
+            updateUI();
+        });
+
+        document.getElementById('teamId').addEventListener('change', (e) => {
+            state.teamId = e.target.value;
+            saveState();
+        });
+
+        document.getElementById('settingsTeamId').addEventListener('change', (e) => {
+            state.teamId = e.target.value;
+            document.getElementById('teamId').value = e.target.value;
+            saveState();
+        });
+
+        // Initialize
+        loadState();
+    </script>
+</body>
+</html>
