@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solon — Ethical Reasoning Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&family=DM+Mono&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F8F6F1;--surface:#FFFFFF;--surface2:#F2EFE8;
+  --border:#E0DBD1;--border2:#C5BFB2;
+  --text:#1A1916;--text2:#58564F;--text3:#99978F;
+  --amber:#B87514;--amber-bg:#FEF5E3;--amber-border:#EDD080;--amber-text:#7A4E00;
+  --green:#2A6640;--green-bg:#EAF5ED;--green-border:#9ACFAB;
+  --red:#AF2F2F;--red-bg:#FAEAEA;--red-border:#EFAAAA;
+  --blue:#1A5CA0;--blue-bg:#EAF0FB;--blue-border:#9CBFEF;
+  --teal:#176A5E;--teal-bg:#E6F3F0;--teal-border:#8CCEC0;
+  --radius:10px;--radius-sm:6px;
+  --font:'DM Sans',system-ui,sans-serif;
+  --serif:'Playfair Display',Georgia,serif;
+  --mono:'DM Mono',monospace;
+  --shadow:0 1px 4px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;line-height:1.6}
+.wrap{max-width:880px;margin:0 auto;padding:2.5rem 1.75rem}
+
+/* Header */
+.hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2rem}
+.logo{font-family:var(--serif);font-size:30px;font-weight:400;letter-spacing:-.3px;display:flex;align-items:center;gap:12px}
+.badge{font-size:11px;padding:3px 10px;background:var(--amber-bg);color:var(--amber-text);border:1px solid var(--amber-border);border-radius:20px;font-weight:500;letter-spacing:.04em;font-family:var(--font)}
+.subtitle{font-size:13px;color:var(--text3);margin-top:4px}
+.status{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text3);margin-top:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--border2)}
+.dot.ok{background:var(--green)}
+.dot.err{background:var(--red)}
+
+/* API key card */
+.key-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.1rem 1.25rem;margin-bottom:1.5rem;box-shadow:var(--shadow)}
+.key-card.ok{border-color:var(--green-border);background:var(--green-bg)}
+.key-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.key-label{font-size:13px;font-weight:500;color:var(--text2);white-space:nowrap}
+.key-input{flex:1;min-width:200px;font-family:var(--mono);font-size:13px;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);outline:none;transition:border-color .15s}
+.key-input:focus{border-color:var(--amber)}
+.key-note{font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;font-size:13px;font-weight:500;font-family:var(--font);cursor:pointer;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--surface);color:var(--text);transition:all .15s;white-space:nowrap}
+.btn:hover{background:var(--surface2)}
+.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.4;cursor:default;transform:none}
+.btn-primary{background:var(--amber);border-color:var(--amber);color:#fff}
+.btn-primary:hover{background:#A06810;border-color:#A06810}
+.btn-sm{padding:6px 12px;font-size:12px}
+.btn-ghost{border-color:transparent;background:transparent;color:var(--text3)}
+.btn-ghost:hover{background:var(--surface2);color:var(--text2)}
+
+/* Tabs */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:1.75rem}
+.tab{padding:8px 18px;font-size:13px;font-family:var(--font);cursor:pointer;border-radius:var(--radius-sm) var(--radius-sm) 0 0;border:1px solid transparent;border-bottom:none;background:transparent;color:var(--text3);margin-bottom:-1px;transition:all .15s}
+.tab:hover{color:var(--text2);background:var(--surface2)}
+.tab.active{background:var(--surface);border-color:var(--border);border-bottom-color:var(--surface);color:var(--text);font-weight:500}
+
+/* Chat */
+.messages{min-height:360px;max-height:460px;overflow-y:auto;padding:.5rem 0;margin-bottom:1rem}
+.msg{display:flex;margin-bottom:.875rem;align-items:flex-start}
+.msg.user{justify-content:flex-end}
+.avatar{width:30px;height:30px;border-radius:50%;background:var(--amber-bg);color:var(--amber-text);font-weight:500;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-right:10px;border:1px solid var(--amber-border)}
+.bubble{max-width:72%;padding:.75rem 1rem;font-size:14px;line-height:1.65;white-space:pre-wrap}
+.msg.user .bubble{background:var(--amber-bg);color:var(--amber-text);border:1px solid var(--amber-border);border-radius:12px 12px 3px 12px}
+.msg.assistant .bubble{background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:3px 12px 12px 12px;box-shadow:var(--shadow)}
+.input-row{display:flex;gap:10px;align-items:flex-end}
+.chat-ta{flex:1;font-family:var(--font);font-size:14px;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);resize:none;background:var(--surface);color:var(--text);outline:none;min-height:46px;max-height:140px;transition:border-color .15s}
+.chat-ta:focus{border-color:var(--amber)}
+
+/* Forms */
+.fg{display:flex;flex-direction:column;gap:6px;margin-bottom:1rem}
+.fl{font-size:13px;font-weight:500;color:var(--text2)}
+.field{font-family:var(--font);font-size:14px;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);outline:none;transition:border-color .15s;width:100%}
+.field:focus{border-color:var(--amber)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;margin-bottom:1rem;box-shadow:var(--shadow)}
+.card-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);margin-bottom:8px}
+.sec-lbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px}
+
+/* Verdict */
+.verdict-row{display:flex;gap:1.5rem;align-items:flex-start}
+.verdict-title{font-size:16px;font-weight:500;margin-bottom:6px;line-height:1.45}
+.verdict-summary{font-size:13px;color:var(--text2);line-height:1.65}
+.score-ring{width:72px;height:72px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;border:1.5px solid}
+.score-n{font-size:20px;font-weight:600}
+.score-l{font-size:10px;opacity:.75;margin-top:1px}
+
+/* Tension */
+.tension{background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius-sm);padding:.875rem 1rem;margin-bottom:1rem}
+.tension-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--amber-text);margin-bottom:4px}
+.tension-txt{font-size:13px;color:var(--amber-text);line-height:1.55}
+
+/* Pros / Cons */
+.pc-grid{display:grid;grid-template-columns:1fr 1fr;gap:.875rem;margin-bottom:1rem}
+.pros{background:var(--green-bg);border:1px solid var(--green-border);border-radius:var(--radius-sm);padding:.875rem 1rem}
+.cons{background:var(--red-bg);border:1px solid var(--red-border);border-radius:var(--radius-sm);padding:.875rem 1rem}
+.pc-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px}
+.pc-item{display:flex;gap:7px;font-size:13px;line-height:1.5;margin-bottom:5px}
+
+/* Stakeholders / Alternatives */
+.row-item{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:6px;font-size:13px}
+.impact-pill{font-size:11px;font-weight:500;padding:2px 9px;border-radius:20px;border:1px solid;flex-shrink:0}
+
+/* Framework cards */
+.fw-grid{display:grid;grid-template-columns:1fr 1fr;gap:.875rem}
+.fw-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;min-height:200px;box-shadow:var(--shadow)}
+.fw-hdr{display:flex;align-items:center;gap:10px;margin-bottom:1rem}
+.fw-ico{width:36px;height:36px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.fw-name{font-size:14px;font-weight:500}
+.fw-sub{font-size:11px;color:var(--text3)}
+.fw-body{font-size:13px;color:var(--text2);line-height:1.7}
+
+/* Welcome */
+.welcome{text-align:center;padding:3rem 1.5rem}
+.welcome h3{font-family:var(--serif);font-size:22px;font-weight:400;margin-bottom:.5rem}
+.welcome p{font-size:13px;color:var(--text2);max-width:380px;margin:0 auto 1.5rem;line-height:1.65}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.chip{font-size:12px;padding:6px 13px;background:var(--surface);border:1px solid var(--border);border-radius:20px;cursor:pointer;color:var(--text2);transition:all .15s;max-width:230px;text-align:left;font-family:var(--font)}
+.chip:hover{border-color:var(--amber);color:var(--amber-text);background:var(--amber-bg)}
+
+/* Error bar */
+.err-bar{background:var(--red-bg);border:1px solid var(--red-border);border-radius:var(--radius-sm);padding:8px 12px;font-size:12px;color:var(--red);margin-bottom:.75rem;font-family:var(--mono);line-height:1.5}
+
+/* Loading dots */
+.dots{display:inline-flex;gap:4px;align-items:center}
+.d{width:5px;height:5px;border-radius:50%;background:var(--text3);animation:blink 1.2s ease-in-out infinite}
+.d:nth-child(2){animation-delay:.2s}
+.d:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,100%{opacity:.2}50%{opacity:1}}
+.loading-bub{background:var(--surface);border:1px solid var(--border);border-radius:3px 12px 12px 12px;padding:.75rem 1rem;box-shadow:var(--shadow);display:inline-block}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+/* Responsive */
+@media(max-width:600px){
+  .grid2,.pc-grid,.fw-grid{grid-template-columns:1fr}
+  .verdict-row{flex-direction:column}
+  .wrap{padding:1.5rem 1rem}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Header -->
+  <div class="hdr">
+    <div>
+      <div class="logo">⚖ Solon <span class="badge">Utilitarian</span></div>
+      <div class="subtitle">General-purpose ethical reasoning agent · Greatest happiness principle</div>
+      <div class="status"><span class="dot" id="statusDot"></span><span id="statusTxt">Not connected</span></div>
+    </div>
+  </div>
+
+  <!-- API Key -->
+  <div class="key-card" id="keyCard">
+    <div class="key-row">
+      <label class="key-label" for="apiKey">Anthropic API Key</label>
+      <input class="key-input" type="password" id="apiKey" placeholder="sk-ant-api03-…" autocomplete="off" onkeydown="if(event.key==='Enter')saveKey()">
+      <button class="btn btn-primary btn-sm" onclick="saveKey()">Connect</button>
+      <button class="btn btn-sm" onclick="clearKey()">Clear</button>
+    </div>
+    <div class="key-note">Your key is stored only in this browser tab (localStorage). Get one at <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:var(--amber-text)">console.anthropic.com</a>. This file never sends your key anywhere except directly to Anthropic's API.</div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="setTab('chat',this)">Chat</button>
+    <button class="tab" onclick="setTab('analyze',this)">Analyze</button>
+    <button class="tab" onclick="setTab('compare',this)">Compare frameworks</button>
+  </div>
+
+  <!-- CHAT TAB -->
+  <div id="tab-chat">
+    <div class="messages" id="msgList">
+      <div class="welcome" id="welcome">
+        <div style="font-size:48px;margin-bottom:1rem;opacity:.35">⚖</div>
+        <h3>Solon — Utilitarian Ethics Advisor</h3>
+        <p>Present any ethical dilemma, moral question, or decision. I'll reason through it using the greatest happiness principle.</p>
+        <div class="chips">
+          <button class="chip" onclick="sendChat('Should I report a colleague\'s minor misconduct?')">Should I report a colleague's minor misconduct?</button>
+          <button class="chip" onclick="sendChat('Is it ethical to eat meat?')">Is it ethical to eat meat?</button>
+          <button class="chip" onclick="sendChat('How do I balance individual rights vs the collective good?')">How do I balance individual rights vs the collective good?</button>
+          <button class="chip" onclick="sendChat('My company wants to cut jobs to save costs — is that ethical?')">My company wants to cut jobs to save costs — is that ethical?</button>
+        </div>
+      </div>
+    </div>
+    <div class="err-bar" id="chatErr" style="display:none"></div>
+    <div class="input-row">
+      <textarea class="chat-ta" id="chatIn" placeholder="Describe your ethical dilemma…" rows="2" onkeydown="chatKey(event)"></textarea>
+      <button class="btn btn-primary" id="sendBtn" onclick="sendChat()">Send</button>
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-top:8px">Shift+Enter for new line · Enter to send</div>
+  </div>
+
+  <!-- ANALYZE TAB -->
+  <div id="tab-analyze" style="display:none">
+    <div id="aForm">
+      <div class="fg">
+        <label class="fl">Describe the ethical dilemma</label>
+        <textarea class="field" id="aScenario" rows="5" placeholder="e.g. My company wants to automate 200 jobs — saving costs that could fund expansion creating 1,000 jobs elsewhere — but 200 people will lose work immediately. Should we proceed?"></textarea>
+      </div>
+      <div class="grid2">
+        <div class="fg">
+          <label class="fl">Key stakeholders (optional)</label>
+          <input class="field" id="aStakeholders" type="text" placeholder="e.g. employees, shareholders, local community">
+        </div>
+        <div class="fg">
+          <label class="fl">Time horizon</label>
+          <select class="field" id="aHorizon">
+            <option value="short">Short-term (days / weeks)</option>
+            <option value="medium" selected>Medium-term (months / years)</option>
+            <option value="long">Long-term (decades)</option>
+          </select>
+        </div>
+      </div>
+      <div class="err-bar" id="aErr" style="display:none"></div>
+      <button class="btn btn-primary" id="aBtn" onclick="runAnalysis()">Run utilitarian analysis →</button>
+    </div>
+    <div id="aResult" style="display:none"></div>
+  </div>
+
+  <!-- COMPARE TAB -->
+  <div id="tab-compare" style="display:none">
+    <div class="fg">
+      <label class="fl">Ethical dilemma to compare across frameworks</label>
+      <div class="input-row" style="align-items:flex-end">
+        <textarea class="field" id="cScenario" rows="3" placeholder="e.g. A doctor has one dose of a life-saving drug. Five patients need partial doses to survive, or one patient needs the entire dose. What should the doctor do?" style="flex:1"></textarea>
+        <button class="btn btn-primary" id="cBtn" onclick="runComparison()" style="align-self:flex-end">Compare →</button>
+      </div>
+    </div>
+    <div class="err-bar" id="cErr" style="display:none"></div>
+    <div class="fw-grid" id="fwGrid"></div>
+  </div>
+
+</div><!-- /wrap -->
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+const MODEL = 'claude-sonnet-4-20250514';
+
+const CHAT_SYS = `You are Solon — a wise ethical advisor specializing in Utilitarian ethics (Jeremy Bentham, John Stuart Mill). Help users reason through moral dilemmas using:
+- The Greatest Happiness Principle: maximize wellbeing for the greatest number
+- Bentham's hedonic calculus: intensity, duration, certainty, extent, fecundity, purity, propinquity of pleasure/pain
+- Mill's distinction between higher and lower pleasures
+- Both Act and Rule Utilitarianism where relevant
+Be precise, thoughtful, and accessible. Acknowledge genuine uncertainty. When stakes are unclear, ask targeted questions. Keep responses focused — 2–4 paragraphs.`;
+
+const ANALYZE_SYS = `You are a Utilitarian ethical analyst. Analyze the dilemma and return ONLY valid JSON — no markdown, no backticks, no explanation before or after:
+{"verdict":"single sentence recommendation","utilityScore":<integer -100 to 100>,"summary":"2-3 sentence utilitarian analysis","stakeholders":[{"name":"...","impact":"positive|negative|mixed","magnitude":"low|medium|high","description":"..."}],"pros":["..."],"cons":["..."],"keyTension":"central ethical tension in one sentence","confidence":<0-100>,"alternatives":[{"option":"...","utilityScore":<integer>}]}`;
+
+const FRAMEWORKS = [
+  { id:'u', name:'Utilitarianism', thinkers:'Bentham · Mill', ico:'⚖', bg:'#FEF5E3', col:'#B87514',
+    sys:`Analyze this ethical dilemma from a Utilitarian perspective (Bentham, Mill). Apply the greatest happiness principle and hedonic calculus. Focus on net consequences for all affected parties. Be concise (3–4 sentences). End with: "Verdict: [clear recommendation]"` },
+  { id:'d', name:'Deontology', thinkers:'Kant · Ross', ico:'📜', bg:'#EAF0FB', col:'#1A5CA0',
+    sys:`Analyze this ethical dilemma from a Kantian Deontological perspective. Apply the categorical imperative, duty-based reasoning, and respect for persons as ends in themselves. Consider W.D. Ross's prima facie duties where helpful. Be concise (3–4 sentences). End with: "Verdict: [clear recommendation]"` },
+  { id:'v', name:'Virtue Ethics', thinkers:'Aristotle · MacIntyre', ico:'🌿', bg:'#EAF5ED', col:'#2A6640',
+    sys:`Analyze this ethical dilemma from an Aristotelian Virtue Ethics perspective. Ask: what would a person of excellent character do? Consider courage, justice, temperance, and practical wisdom. Be concise (3–4 sentences). End with: "Verdict: [clear recommendation]"` },
+  { id:'c', name:'Care Ethics', thinkers:'Noddings · Gilligan', ico:'❤', bg:'#FAEAEA', col:'#AF2F2F',
+    sys:`Analyze this ethical dilemma from a Care Ethics perspective (Noddings, Gilligan). Focus on relationships, context, empathy, and responsibilities to particular others in webs of care. Be concise (3–4 sentences). End with: "Verdict: [clear recommendation]"` }
+];
+
+// ─── STATE ─────────────────────────────────────────────────────────────────────
+let apiKey = localStorage.getItem('solon_key') || '';
+let history = [];
+
+// ─── INIT ──────────────────────────────────────────────────────────────────────
+(function init() {
+  if (apiKey) { document.getElementById('apiKey').value = apiKey; setConn(true); }
+  renderFwGrid(null, false);
+})();
+
+// ─── API KEY ───────────────────────────────────────────────────────────────────
+function saveKey() {
+  const k = document.getElementById('apiKey').value.trim();
+  if (!k) return;
+  apiKey = k; localStorage.setItem('solon_key', k); setConn(true);
+}
+function clearKey() {
+  apiKey = ''; localStorage.removeItem('solon_key');
+  document.getElementById('apiKey').value = ''; setConn(false);
+}
+function setConn(ok) {
+  document.getElementById('statusDot').className = 'dot ' + (ok ? 'ok' : 'err');
+  document.getElementById('statusTxt').textContent = ok ? 'Connected' : 'Not connected';
+  document.getElementById('keyCard').className = 'key-card' + (ok ? ' ok' : '');
+}
+
+// ─── TABS ──────────────────────────────────────────────────────────────────────
+function setTab(name, btn) {
+  ['chat','analyze','compare'].forEach(t => document.getElementById('tab-'+t).style.display = t===name?'':'none');
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ─── API CALL ─────────────────────────────────────────────────────────────────
+async function callClaude(messages, system) {
+  if (!apiKey) throw new Error('No API key — enter it above and click Connect.');
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({ model: MODEL, max_tokens: 1000, system, messages })
+  });
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e?.error?.message || 'HTTP ' + res.status);
+  }
+  const d = await res.json();
+  return (d.content || []).map(b => b.text || '').join('');
+}
+
+// ─── CHAT ──────────────────────────────────────────────────────────────────────
+async function sendChat(preset) {
+  const inp = document.getElementById('chatIn');
+  const q = (preset || inp.value).trim();
+  if (!q) return;
+  hide('chatErr');
+  const w = document.getElementById('welcome'); if (w) w.remove();
+  history.push({ role:'user', content:q });
+  inp.value = '';
+  renderMsgs();
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true;
+  addLoading();
+  try {
+    const reply = await callClaude(history, CHAT_SYS);
+    history.push({ role:'assistant', content:reply });
+    rmLoading(); renderMsgs();
+  } catch(e) {
+    rmLoading();
+    history.pop();
+    showErr('chatErr', e.message);
+    if (e.message.includes('No API key')) pulseKey();
+  }
+  btn.disabled = false;
+}
+
+function renderMsgs() {
+  const list = document.getElementById('msgList');
+  list.innerHTML = history.map(m => `
+    <div class="msg ${m.role}">
+      ${m.role==='assistant' ? '<div class="avatar">S</div>' : ''}
+      <div class="bubble">${esc(m.content)}</div>
+    </div>`).join('');
+  list.scrollTop = list.scrollHeight;
+}
+
+function addLoading() {
+  document.getElementById('msgList').insertAdjacentHTML('beforeend',
+    `<div class="msg assistant" id="ldg"><div class="avatar">S</div><div class="loading-bub"><div class="dots"><div class="d"></div><div class="d"></div><div class="d"></div></div></div></div>`);
+  document.getElementById('msgList').scrollTop = 9999;
+}
+function rmLoading() { document.getElementById('ldg')?.remove(); }
+function chatKey(e) { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } }
+
+// ─── ANALYZE ───────────────────────────────────────────────────────────────────
+async function runAnalysis() {
+  const sc = document.getElementById('aScenario').value.trim();
+  if (!sc) return;
+  hide('aErr');
+  const btn = document.getElementById('aBtn');
+  btn.disabled = true; btn.textContent = 'Analyzing…';
+  document.getElementById('aResult').style.display = 'none';
+  const st = document.getElementById('aStakeholders').value.trim();
+  const hz = document.getElementById('aHorizon').value;
+  const prompt = `Ethical dilemma: ${sc}\n${st?'Key stakeholders: '+st+'\n':''}Time horizon: ${hz}-term`;
+  try {
+    const txt = await callClaude([{role:'user',content:prompt}], ANALYZE_SYS);
+    const r = JSON.parse(txt.replace(/```json|```/g,'').trim());
+    renderReport(r);
+  } catch(e) {
+    showErr('aErr', e.message);
+    if (e.message.includes('No API key')) pulseKey();
+  }
+  btn.disabled = false; btn.textContent = 'Run utilitarian analysis →';
+}
+
+function renderReport(r) {
+  const pos = r.utilityScore >= 0;
+  const sc = pos ? {c:'#2A6640',bg:'#EAF5ED',b:'#9ACFAB'} : {c:'#AF2F2F',bg:'#FAEAEA',b:'#EFAAAA'};
+  const impColors = {
+    positive:{bg:'#EAF5ED',c:'#2A6640',b:'#9ACFAB'},
+    negative:{bg:'#FAEAEA',c:'#AF2F2F',b:'#EFAAAA'},
+    mixed:{bg:'#FEF5E3',c:'#7A4E00',b:'#EDD080'}
+  };
+  const stHtml = (r.stakeholders||[]).map(s=>{
+    const ic = impColors[s.impact]||impColors.mixed;
+    return `<div class="row-item">
+      <span class="impact-pill" style="background:${ic.bg};color:${ic.c};border-color:${ic.b}">${s.impact}</span>
+      <strong style="min-width:90px;color:var(--text)">${esc(s.name)}</strong>
+      <span style="flex:1;color:var(--text2)">${esc(s.description)}</span>
+      <span style="color:var(--text3);font-size:11px">${s.magnitude}</span>
+    </div>`;
+  }).join('');
+  const altHtml = (r.alternatives||[]).map(a=>`
+    <div class="row-item">
+      <strong style="min-width:38px;color:${a.utilityScore>=0?'#2A6640':'#AF2F2F'}">${a.utilityScore>0?'+':''}${a.utilityScore}</strong>
+      <span style="color:var(--text)">${esc(a.option)}</span>
+    </div>`).join('');
+
+  document.getElementById('aResult').innerHTML = `
+    <div class="card">
+      <div class="card-lbl">Utilitarian verdict</div>
+      <div class="verdict-row">
+        <div style="flex:1">
+          <div class="verdict-title">${esc(r.verdict)}</div>
+          <div class="verdict-summary">${esc(r.summary)}</div>
+        </div>
+        <div class="score-ring" style="background:${sc.bg};border-color:${sc.b};color:${sc.c}">
+          <span class="score-n">${r.utilityScore>0?'+':''}${r.utilityScore}</span>
+          <span class="score-l">utility</span>
+        </div>
+      </div>
+      <div style="margin-top:10px;font-size:12px;color:var(--text3)">${r.confidence}% confidence</div>
+    </div>
+    <div class="tension">
+      <div class="tension-lbl">Key tension</div>
+      <div class="tension-txt">${esc(r.keyTension)}</div>
+    </div>
+    <div class="pc-grid">
+      <div class="pros">
+        <div class="pc-lbl" style="color:var(--green)">Utility gains</div>
+        ${(r.pros||[]).map(p=>`<div class="pc-item" style="color:var(--green)"><span style="flex-shrink:0">✓</span><span>${esc(p)}</span></div>`).join('')}
+      </div>
+      <div class="cons">
+        <div class="pc-lbl" style="color:var(--red)">Utility costs</div>
+        ${(r.cons||[]).map(c=>`<div class="pc-item" style="color:var(--red)"><span style="flex-shrink:0">✗</span><span>${esc(c)}</span></div>`).join('')}
+      </div>
+    </div>
+    ${stHtml ? `<div class="sec-lbl">Stakeholder impact</div>${stHtml}<br>` : ''}
+    ${altHtml ? `<div class="sec-lbl">Alternative options</div>${altHtml}<br>` : ''}
+    <button class="btn" onclick="resetAnalysis()" style="margin-top:.5rem">← Analyze another dilemma</button>`;
+  document.getElementById('aResult').style.display = '';
+  document.getElementById('aForm').style.display = 'none';
+}
+function resetAnalysis() {
+  document.getElementById('aResult').style.display='none';
+  document.getElementById('aForm').style.display='';
+}
+
+// ─── COMPARE ───────────────────────────────────────────────────────────────────
+async function runComparison() {
+  const sc = document.getElementById('cScenario').value.trim();
+  if (!sc) return;
+  hide('cErr');
+  const btn = document.getElementById('cBtn');
+  btn.disabled = true; btn.textContent = 'Comparing…';
+  renderFwGrid(null, true);
+  const prompt = `Ethical dilemma: ${sc}`;
+  await Promise.all(FRAMEWORKS.map(async fw => {
+    try {
+      const txt = await callClaude([{role:'user',content:prompt}], fw.sys);
+      const el = document.getElementById('fw-body-'+fw.id);
+      if (el) { el.textContent = txt; el.style.fontStyle='normal'; el.style.color='var(--text2)'; }
+    } catch(e) {
+      const el = document.getElementById('fw-body-'+fw.id);
+      if (el) { el.textContent = 'Error: '+e.message; el.style.color='var(--red)'; el.style.fontStyle='normal'; }
+      showErr('cErr', e.message);
+      if (e.message.includes('No API key')) pulseKey();
+    }
+  }));
+  btn.disabled = false; btn.textContent = 'Compare →';
+}
+
+function renderFwGrid(_, loading) {
+  document.getElementById('fwGrid').innerHTML = FRAMEWORKS.map(fw => `
+    <div class="fw-card">
+      <div class="fw-hdr">
+        <div class="fw-ico" style="background:${fw.bg};color:${fw.col};font-size:18px">${fw.ico}</div>
+        <div><div class="fw-name">${fw.name}</div><div class="fw-sub">${fw.thinkers}</div></div>
+      </div>
+      <div class="fw-body" id="fw-body-${fw.id}" style="color:var(--text3);font-style:italic">
+        ${loading ? '<div class="dots"><div class="d"></div><div class="d"></div><div class="d"></div></div>' : 'Awaiting dilemma…'}
+      </div>
+    </div>`).join('');
+}
+
+// ─── UTILS ─────────────────────────────────────────────────────────────────────
+function esc(s=''){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function showErr(id,msg){const el=document.getElementById(id);if(el){el.textContent=msg;el.style.display='';}}
+function hide(id){const el=document.getElementById(id);if(el)el.style.display='none';}
+function pulseKey(){
+  const el=document.getElementById('apiKey');
+  el.focus();el.style.borderColor='var(--red)';
+  setTimeout(()=>el.style.borderColor='',2500);
+}
+</script>
+</body>
+</html>
