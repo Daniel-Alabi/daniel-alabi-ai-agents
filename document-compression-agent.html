@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>COMPACTOR — Document Compression Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0c0e; --panel:#121419; --panel-2:#161a20; --panel-3:#1b2027;
+  --line:#272c34; --line-2:#343a44;
+  --ink:#ecebe6; --muted:#8b929c; --faint:#5c636d;
+  --amber:#f0a830; --amber-dim:rgba(240,168,48,.14); --amber-line:rgba(240,168,48,.35);
+  --green:#56d6a0; --green-dim:rgba(86,214,160,.12);
+  --red:#ff6f63; --red-dim:rgba(255,111,99,.12);
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --sans:'Hanken Grotesk',system-ui,sans-serif;
+  --disp:'Fraunces',Georgia,serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:
+    radial-gradient(900px 500px at 85% -10%, rgba(240,168,48,.06), transparent 60%),
+    radial-gradient(800px 600px at -10% 110%, rgba(86,214,160,.05), transparent 55%),
+    var(--bg);
+  color:var(--ink); font-family:var(--sans); line-height:1.5;
+  min-height:100vh; -webkit-font-smoothing:antialiased;
+}
+body::before{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.5;
+  background-image:
+    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+  background-size:64px 64px;
+}
+body::after{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.035;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.wrap{position:relative; z-index:1; max-width:1000px; margin:0 auto; padding:34px 22px 80px}
+
+/* Header */
+.top{display:flex; align-items:flex-end; justify-content:space-between; gap:18px; flex-wrap:wrap; margin-bottom:8px}
+.brand{display:flex; align-items:center; gap:16px}
+.mark{
+  width:46px; height:46px; flex:none; border-radius:11px; position:relative;
+  background:linear-gradient(150deg,#1c2128,#0e1115); border:1px solid var(--line-2);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 8px 24px rgba(0,0,0,.4);
+}
+.mark::before, .mark::after{content:""; position:absolute; left:50%; transform:translateX(-50%); border-radius:2px; background:var(--amber)}
+.mark::before{top:12px; width:22px; height:4px; box-shadow:0 0 12px var(--amber-line)}
+.mark::after{bottom:12px; width:11px; height:4px}
+.mark i{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:16px; height:4px; background:var(--green); border-radius:2px; opacity:.8}
+h1{font-family:var(--disp); font-weight:600; font-size:31px; letter-spacing:.5px; margin:0; line-height:1}
+.sub{font-family:var(--mono); font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--faint); margin-top:7px}
+.status{font-family:var(--mono); font-size:11.5px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted);
+  border:1px solid var(--line); border-radius:999px; padding:7px 14px; background:var(--panel); display:flex; align-items:center; gap:9px; white-space:nowrap}
+.dot{width:8px; height:8px; border-radius:50%; background:var(--green); box-shadow:0 0 10px var(--green)}
+.status.busy .dot{background:var(--amber); box-shadow:0 0 10px var(--amber); animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.3}}
+.rule{height:1px; background:linear-gradient(90deg,var(--amber-line),var(--line),transparent); margin:22px 0 26px}
+
+/* Panels */
+.panel{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:20px; margin-bottom:18px;
+  box-shadow:0 1px 0 rgba(255,255,255,.02) inset, 0 12px 30px rgba(0,0,0,.25)}
+.label{font-family:var(--mono); font-size:11px; letter-spacing:2.5px; text-transform:uppercase; color:var(--faint); margin:0 0 14px; display:flex; align-items:center; gap:10px}
+.label::before{content:""; width:6px; height:6px; background:var(--amber); border-radius:1px; transform:rotate(45deg)}
+
+/* Dropzone */
+.drop{border:1.5px dashed var(--line-2); border-radius:13px; padding:40px 24px; text-align:center; cursor:pointer;
+  transition:.18s; background:repeating-linear-gradient(135deg, transparent, transparent 18px, rgba(255,255,255,.012) 18px, rgba(255,255,255,.012) 19px)}
+.drop:hover, .drop.hot{border-color:var(--amber); background:var(--amber-dim)}
+.drop .big{font-family:var(--disp); font-size:21px; font-weight:600; margin-bottom:7px}
+.drop .small{font-family:var(--mono); font-size:11.5px; letter-spacing:1px; color:var(--muted)}
+.drop .types{margin-top:14px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap}
+.tag{font-family:var(--mono); font-size:10px; letter-spacing:1px; color:var(--faint); border:1px solid var(--line); border-radius:5px; padding:4px 8px; text-transform:uppercase}
+
+/* File strip */
+.fstrip{display:flex; align-items:center; gap:16px}
+.fbadge{width:54px; height:54px; flex:none; border-radius:10px; display:flex; align-items:center; justify-content:center;
+  font-family:var(--mono); font-weight:700; font-size:12px; letter-spacing:1px; color:var(--bg); background:var(--amber)}
+.fbadge.docx{background:#5b9bd5} .fbadge.txt,.fbadge.md{background:var(--green)}
+.fmeta{flex:1; min-width:0}
+.fname{font-weight:600; font-size:15.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.fdesc{font-family:var(--mono); font-size:11.5px; color:var(--muted); margin-top:3px}
+.fclear{font-family:var(--mono); font-size:11px; letter-spacing:1px; color:var(--muted); background:none; border:1px solid var(--line); border-radius:7px; padding:8px 12px; cursor:pointer; text-transform:uppercase}
+.fclear:hover{border-color:var(--red); color:var(--red)}
+
+/* Controls */
+.ctl{margin-bottom:20px}
+.ctl:last-child{margin-bottom:0}
+.ctl-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:11px}
+.ctl-title{font-weight:600; font-size:14.5px; display:flex; align-items:center; gap:9px}
+.ctl-note{font-size:12.5px; color:var(--muted); margin:-4px 0 12px; max-width:62ch}
+.switch{position:relative; width:46px; height:25px; flex:none; cursor:pointer}
+.switch input{display:none}
+.switch span{position:absolute; inset:0; background:var(--panel-3); border:1px solid var(--line-2); border-radius:999px; transition:.18s}
+.switch span::after{content:""; position:absolute; left:3px; top:2.5px; width:18px; height:18px; border-radius:50%; background:var(--faint); transition:.18s}
+.switch input:checked + span{background:var(--amber-dim); border-color:var(--amber-line)}
+.switch input:checked + span::after{background:var(--amber); left:23px; box-shadow:0 0 10px var(--amber-line)}
+.seg{display:flex; gap:6px; flex-wrap:wrap}
+.seg button{flex:1; min-width:90px; font-family:var(--sans); font-size:13px; font-weight:600; color:var(--muted);
+  background:var(--panel-2); border:1px solid var(--line); border-radius:9px; padding:11px 10px; cursor:pointer; transition:.15s; text-align:left}
+.seg button .t{display:block; color:var(--ink)} 
+.seg button .d{display:block; font-family:var(--mono); font-size:10px; letter-spacing:.5px; color:var(--faint); margin-top:3px; font-weight:400}
+.seg button:hover{border-color:var(--line-2)}
+.seg button.on{border-color:var(--amber-line); background:var(--amber-dim)}
+.seg button.on .t{color:var(--amber)}
+.opt-body{transition:.2s; overflow:hidden}
+.opt-body.off{max-height:0; opacity:.35; pointer-events:none; margin-top:0}
+.sub-controls{margin-top:14px; padding-top:14px; border-top:1px dashed var(--line)}
+.mini-label{font-family:var(--mono); font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--faint); margin-bottom:8px}
+
+/* Run */
+.run{width:100%; margin-top:6px; font-family:var(--mono); font-weight:700; font-size:14px; letter-spacing:2px; text-transform:uppercase;
+  color:var(--bg); background:var(--amber); border:none; border-radius:11px; padding:16px; cursor:pointer; transition:.15s;
+  box-shadow:0 8px 24px rgba(240,168,48,.22)}
+.run:hover{filter:brightness(1.07)}
+.run:disabled{background:var(--panel-3); color:var(--faint); box-shadow:none; cursor:not-allowed}
+
+/* Console */
+.console{font-family:var(--mono); font-size:12px; background:#08090b; border:1px solid var(--line); border-radius:11px; padding:14px 16px;
+  max-height:190px; overflow-y:auto; line-height:1.85}
+.console .ln{white-space:pre-wrap; word-break:break-word}
+.console .ts{color:var(--faint)}
+.console .ok{color:var(--green)} .console .warn{color:var(--amber)} .console .err{color:var(--red)} .console .hi{color:var(--ink)}
+.console:empty::before{content:"engine idle — awaiting input"; color:var(--faint)}
+
+/* Results */
+.results{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+@media (max-width:720px){ .results{grid-template-columns:1fr} .top{align-items:flex-start} }
+.rcard{background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:18px; display:flex; flex-direction:column}
+.rcard h3{font-family:var(--mono); font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin:0 0 14px; display:flex; align-items:center; gap:8px}
+.rcard h3 .ic{color:var(--green)}
+.metrics{display:flex; align-items:flex-end; gap:18px; margin-bottom:12px}
+.metric .v{font-family:var(--disp); font-size:26px; font-weight:600; line-height:1}
+.metric .k{font-family:var(--mono); font-size:9.5px; letter-spacing:1.5px; text-transform:uppercase; color:var(--faint); margin-top:5px}
+.metric .v.green{color:var(--green)} .metric .v.amber{color:var(--amber)} .metric .v.red{color:var(--red)}
+.bar{height:7px; border-radius:4px; background:var(--panel-3); overflow:hidden; margin:4px 0 14px; border:1px solid var(--line)}
+.bar i{display:block; height:100%; background:linear-gradient(90deg,var(--green),#8fe9c4); border-radius:4px; transition:width .8s cubic-bezier(.2,.8,.2,1)}
+.bar.amber i{background:linear-gradient(90deg,var(--amber),#ffd07a)}
+.bar.red i{background:linear-gradient(90deg,var(--red),#ff9d94)}
+.rnote{font-size:12px; color:var(--muted); margin-bottom:14px; line-height:1.5}
+.rnote.warn{color:var(--amber)}
+.preview{font-family:var(--mono); font-size:11.5px; line-height:1.7; background:#08090b; border:1px solid var(--line); border-radius:9px;
+  padding:12px 14px; max-height:200px; overflow-y:auto; white-space:pre-wrap; word-break:break-word; color:#cfd3d9; margin-bottom:14px; flex:1}
+.ractions{display:flex; gap:8px; flex-wrap:wrap; margin-top:auto}
+.btn{font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; cursor:pointer; border-radius:8px; padding:11px 14px; transition:.15s; border:1px solid var(--line-2); background:var(--panel-3); color:var(--ink)}
+.btn:hover{border-color:var(--amber-line)}
+.btn.primary{background:var(--green); color:var(--bg); border-color:transparent}
+.btn.primary:hover{filter:brightness(1.06)}
+.hidden{display:none !important}
+.spin{display:inline-block; width:12px; height:12px; border:2px solid rgba(11,12,14,.3); border-top-color:var(--bg); border-radius:50%; animation:sp .7s linear infinite; vertical-align:-1px; margin-right:8px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.foot{font-family:var(--mono); font-size:10.5px; letter-spacing:.5px; color:var(--faint); text-align:center; margin-top:30px; line-height:1.7}
+a.lnk{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <div class="mark"><i></i></div>
+      <div>
+        <h1>Compactor</h1>
+        <div class="sub">Document Compression Engine</div>
+      </div>
+    </div>
+    <div class="status" id="status"><span class="dot"></span><span id="statusText">Engine Ready</span></div>
+  </header>
+  <div class="rule"></div>
+
+  <!-- INTAKE -->
+  <section class="panel">
+    <p class="label">01 — Intake</p>
+    <div id="dropzone" class="drop">
+      <div class="big">Drop a document here</div>
+      <div class="small">or click to browse · processed entirely in your browser</div>
+      <div class="types">
+        <span class="tag">PDF</span><span class="tag">DOCX</span><span class="tag">TXT</span><span class="tag">MD</span>
+      </div>
+    </div>
+    <input type="file" id="fileInput" class="hidden" accept=".pdf,.docx,.txt,.md,.markdown" />
+    <div id="fileStrip" class="fstrip hidden">
+      <div class="fbadge" id="fbadge">PDF</div>
+      <div class="fmeta">
+        <div class="fname" id="fname">—</div>
+        <div class="fdesc" id="fdesc">—</div>
+      </div>
+      <button class="fclear" id="fclear">Clear</button>
+    </div>
+  </section>
+
+  <!-- PARAMETERS -->
+  <section class="panel hidden" id="paramsPanel">
+    <p class="label">02 — Parameters</p>
+
+    <!-- Content condensation -->
+    <div class="ctl">
+      <div class="ctl-head">
+        <div class="ctl-title"><span style="color:var(--amber)">⤓</span> Condense content <span style="color:var(--faint);font-weight:400;font-size:12px">· Claude</span></div>
+        <label class="switch"><input type="checkbox" id="optCondense" checked><span></span></label>
+      </div>
+      <p class="ctl-note">Extracts the text and rewrites it shorter while preserving facts, figures, names and structure. Outputs Markdown.</p>
+      <div class="opt-body" id="condenseBody">
+        <div class="mini-label">Intensity</div>
+        <div class="seg" id="levelSeg">
+          <button data-level="light"><span class="t">Light</span><span class="d">~65% length</span></button>
+          <button data-level="balanced" class="on"><span class="t">Balanced</span><span class="d">~40% length</span></button>
+          <button data-level="aggressive"><span class="t">Aggressive</span><span class="d">~20% length</span></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Byte compression -->
+    <div class="ctl" style="border-top:1px solid var(--line); padding-top:20px">
+      <div class="ctl-head">
+        <div class="ctl-title"><span style="color:var(--green)">▣</span> Shrink file size</div>
+        <label class="switch"><input type="checkbox" id="optSize" checked><span></span></label>
+      </div>
+      <p class="ctl-note" id="sizeNote">Reduces the bytes of the file itself.</p>
+      <div class="opt-body" id="sizeBody">
+        <!-- PDF method -->
+        <div id="pdfMethodWrap" class="hidden">
+          <div class="mini-label">Method</div>
+          <div class="seg" id="pdfMethodSeg">
+            <button data-method="raster" class="on"><span class="t">Rasterize</span><span class="d">max shrink · text → image</span></button>
+            <button data-method="optimize"><span class="t">Keep text</span><span class="d">searchable · modest shrink</span></button>
+          </div>
+        </div>
+        <div class="sub-controls" id="strengthWrap">
+          <div class="mini-label">Strength</div>
+          <div class="seg" id="strengthSeg">
+            <button data-strength="gentle"><span class="t">Gentle</span><span class="d">high quality</span></button>
+            <button data-strength="balanced" class="on"><span class="t">Balanced</span><span class="d">good tradeoff</span></button>
+            <button data-strength="maximum"><span class="t">Maximum</span><span class="d">smallest</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="run" id="runBtn" style="margin-top:22px">Compress Document</button>
+  </section>
+
+  <!-- CONSOLE -->
+  <section class="panel hidden" id="consolePanel">
+    <p class="label">03 — Process Log</p>
+    <div class="console" id="console"></div>
+  </section>
+
+  <!-- RESULTS -->
+  <section class="hidden" id="resultsPanel">
+    <p class="label" style="margin-bottom:16px">04 — Output</p>
+    <div class="results">
+      <div class="rcard hidden" id="contentCard">
+        <h3><span class="ic">✓</span> Condensed content</h3>
+        <div class="metrics">
+          <div class="metric"><div class="v" id="cWordsOut">—</div><div class="k">words out</div></div>
+          <div class="metric"><div class="v green" id="cReduce">—</div><div class="k">reduction</div></div>
+        </div>
+        <div class="bar"><i id="cBar" style="width:0%"></i></div>
+        <div class="rnote" id="cNote"></div>
+        <div class="preview" id="cPreview"></div>
+        <div class="ractions">
+          <button class="btn primary" id="cDownload">Download .md</button>
+          <button class="btn" id="cCopy">Copy</button>
+        </div>
+      </div>
+
+      <div class="rcard hidden" id="fileCard">
+        <h3><span class="ic">✓</span> Compressed file</h3>
+        <div class="metrics">
+          <div class="metric"><div class="v" id="fSizeOut">—</div><div class="k">new size</div></div>
+          <div class="metric"><div class="v green" id="fReduce">—</div><div class="k">reduction</div></div>
+        </div>
+        <div class="bar"><i id="fBar" style="width:0%"></i></div>
+        <div class="rnote" id="fNote"></div>
+        <div class="ractions">
+          <button class="btn primary" id="fDownload">Download</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="foot">
+    Local processing · text extraction & byte reduction never leave your browser.<br>
+    Condensation routes text to Claude (Sonnet) in chunks. No file is uploaded to a server.
+  </div>
+</div>
+
+<!-- Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+<script>
+/* ---------- setup ---------- */
+if (window.pdfjsLib) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+}
+
+const $ = id => document.getElementById(id);
+const state = {
+  file:null, type:null, level:"balanced", strength:"balanced", pdfMethod:"raster",
+  condensedText:null, condensedBlob:null, outFileBlob:null, outFileName:null
+};
+
+const LEVELS = {
+  light:      { ratio:"60-70%", instr:"Tighten the text: remove redundancy, filler and repetition, but keep every section, fact, figure, name and argument. Aim for roughly 60-70% of the original length." },
+  balanced:   { ratio:"35-45%", instr:"Condense substantially while preserving all key facts, figures, names, dates, decisions and the logical structure. Use compact prose and lists where natural. Aim for roughly 35-45% of the original length." },
+  aggressive: { ratio:"15-25%", instr:"Produce a dense executive condensation: only the essential facts, figures, names, decisions and conclusions, as tight bullet points and short lines. Aim for roughly 15-25% of the original length." }
+};
+const STRENGTH = {
+  gentle:  { scale:1.8, q:0.82, maxpx:2200 },
+  balanced:{ scale:1.3, q:0.68, maxpx:1600 },
+  maximum: { scale:1.0, q:0.52, maxpx:1100 }
+};
+
+/* ---------- helpers ---------- */
+function fmtBytes(b){ if(b<1024) return b+" B"; if(b<1048576) return (b/1024).toFixed(1)+" KB"; return (b/1048576).toFixed(2)+" MB"; }
+function fmtNum(n){ return n.toLocaleString("en-US"); }
+function wordCount(t){ const m=(t||"").trim().match(/\S+/g); return m?m.length:0; }
+function setStatus(txt, busy){ $("statusText").textContent=txt; $("status").classList.toggle("busy", !!busy); }
+function show(el){ el.classList.remove("hidden"); }
+function hide(el){ el.classList.add("hidden"); }
+function loadImage(url){ return new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=url; }); }
+
+function log(msg, cls){
+  const c=$("console"); const now=new Date().toLocaleTimeString("en-US",{hour12:false});
+  const div=document.createElement("div"); div.className="ln";
+  div.innerHTML='<span class="ts">'+now+'  </span><span class="'+(cls||"hi")+'">'+msg+'</span>';
+  c.appendChild(div); c.scrollTop=c.scrollHeight;
+}
+
+/* ---------- file intake ---------- */
+const TYPE_OF = name => {
+  const e = name.toLowerCase().split(".").pop();
+  if(e==="pdf") return "pdf";
+  if(e==="docx") return "docx";
+  if(e==="md"||e==="markdown") return "md";
+  if(e==="txt") return "txt";
+  return "other";
+};
+
+function loadFile(file){
+  const type = TYPE_OF(file.name);
+  if(type==="other"){ log("Unsupported file type — use PDF, DOCX, TXT or MD.","err"); return; }
+  state.file=file; state.type=type;
+  resetResults();
+  $("fname").textContent=file.name;
+  $("fdesc").textContent = type.toUpperCase()+" · "+fmtBytes(file.size);
+  const badge=$("fbadge"); badge.className="fbadge "+type; badge.textContent = type.toUpperCase();
+  show($("fileStrip")); hide($("dropzone"));
+  show($("paramsPanel"));
+  configureForType(type);
+  log("Loaded <span class='hi'>"+file.name+"</span> ("+fmtBytes(file.size)+")","ok");
+}
+
+function configureForType(type){
+  const sizeNote=$("sizeNote"), pdfMethod=$("pdfMethodWrap"), strengthWrap=$("strengthWrap");
+  if(type==="pdf"){
+    sizeNote.textContent="Reduces PDF bytes. Rasterize gives the biggest cut but turns text into images; Keep-text stays searchable.";
+    show(pdfMethod); updateStrengthVisibility();
+  } else if(type==="docx"){
+    sizeNote.textContent="Re-encodes images embedded in the .docx (the usual source of bloat). Keeps text and layout.";
+    hide(pdfMethod); show(strengthWrap);
+  } else { // txt / md
+    sizeNote.textContent="Text files have no byte overhead — here, smaller size comes directly from condensing the content. Turn on Condense above.";
+    hide(pdfMethod); hide(strengthWrap);
+  }
+}
+function updateStrengthVisibility(){
+  if(state.type==="pdf" && state.pdfMethod==="optimize") hide($("strengthWrap"));
+  else if(state.type!=="txt" && state.type!=="md") show($("strengthWrap"));
+}
+
+function clearFile(){
+  state.file=null; state.type=null; resetResults();
+  hide($("fileStrip")); show($("dropzone"));
+  hide($("paramsPanel")); hide($("consolePanel")); hide($("resultsPanel"));
+  $("fileInput").value="";
+  $("console").innerHTML="";
+}
+function resetResults(){
+  state.condensedText=state.condensedBlob=state.outFileBlob=state.outFileName=null;
+  hide($("resultsPanel")); hide($("contentCard")); hide($("fileCard"));
+}
+
+/* ---------- text extraction ---------- */
+async function extractText(){
+  const f=state.file;
+  if(state.type==="txt"||state.type==="md"){ return await f.text(); }
+  if(state.type==="pdf"){
+    if(!window.pdfjsLib) throw new Error("PDF engine failed to load.");
+    const buf=await f.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+    let out=[];
+    for(let i=1;i<=pdf.numPages;i++){
+      const page=await pdf.getPage(i);
+      const tc=await page.getTextContent();
+      out.push(tc.items.map(it=>it.str).join(" "));
+      log("Extracted text · page "+i+"/"+pdf.numPages);
+    }
+    return out.join("\n\n");
+  }
+  if(state.type==="docx"){
+    if(!window.mammoth) throw new Error("DOCX engine failed to load.");
+    const buf=await f.arrayBuffer();
+    const r=await mammoth.extractRawText({arrayBuffer:buf});
+    return r.value||"";
+  }
+  return "";
+}
+
+/* ---------- condensation via Claude ---------- */
+function chunkText(text, size=3500){
+  const paras=text.split(/\n\s*\n/);
+  const chunks=[]; let cur="";
+  for(let p of paras){
+    if(p.length>size){
+      if(cur){ chunks.push(cur); cur=""; }
+      for(let i=0;i<p.length;i+=size) chunks.push(p.slice(i,i+size));
+      continue;
+    }
+    if((cur+"\n\n"+p).length>size && cur){ chunks.push(cur); cur=p; }
+    else cur = cur ? cur+"\n\n"+p : p;
+  }
+  if(cur) chunks.push(cur);
+  return chunks;
+}
+
+async function callClaude(system, content){
+  const res=await fetch("https://api.anthropic.com/v1/messages",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      model:"claude-sonnet-4-20250514",
+      max_tokens:1000,
+      system:system,
+      messages:[{role:"user",content:content}]
+    })
+  });
+  if(!res.ok){ throw new Error("API "+res.status); }
+  const data=await res.json();
+  return (data.content||[]).map(b=>b.type==="text"?b.text:"").join("").trim();
+}
+
+async function condense(text){
+  const lv=LEVELS[state.level];
+  const system="You are a precise document compression engine. "+lv.instr+
+    " Never invent information. Preserve all numbers, names, dates and defined terms exactly. "+
+    "Output ONLY the condensed result as clean Markdown — no preamble, no commentary, no notes about what you did.";
+  const chunks=chunkText(text);
+  log("Condensing in "+chunks.length+" chunk(s) at <span class='hi'>"+state.level+"</span> intensity…","warn");
+  const out=[];
+  for(let i=0;i<chunks.length;i++){
+    log("→ chunk "+(i+1)+"/"+chunks.length+" ("+wordCount(chunks[i])+" words)");
+    const r=await callClaude(system, chunks[i]);
+    out.push(r);
+  }
+  return out.join("\n\n");
+}
+
+/* ---------- PDF byte compression ---------- */
+async function compressPdfRaster(strength){
+  const s=STRENGTH[strength];
+  const buf=await state.file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+  const out=await PDFLib.PDFDocument.create();
+  for(let i=1;i<=pdf.numPages;i++){
+    const page=await pdf.getPage(i);
+    const vp=page.getViewport({scale:s.scale});
+    const canvas=document.createElement("canvas");
+    canvas.width=Math.max(1,Math.ceil(vp.width)); canvas.height=Math.max(1,Math.ceil(vp.height));
+    const ctx=canvas.getContext("2d");
+    ctx.fillStyle="#ffffff"; ctx.fillRect(0,0,canvas.width,canvas.height);
+    await page.render({canvasContext:ctx, viewport:vp}).promise;
+    const dataUrl=canvas.toDataURL("image/jpeg", s.q);
+    const jpg=await (await fetch(dataUrl)).arrayBuffer();
+    const img=await out.embedJpg(jpg);
+    const p=out.addPage([vp.width, vp.height]);
+    p.drawImage(img,{x:0,y:0,width:vp.width,height:vp.height});
+    log("Re-rendered page "+i+"/"+pdf.numPages);
+  }
+  return await out.save();
+}
+async function optimizePdf(){
+  const buf=await state.file.arrayBuffer();
+  const doc=await PDFLib.PDFDocument.load(buf,{ignoreEncryption:true});
+  return await doc.save({useObjectStreams:true});
+}
+
+/* ---------- DOCX image recompression ---------- */
+async function compressDocx(strength){
+  if(!window.JSZip) throw new Error("Zip engine failed to load.");
+  const s=STRENGTH[strength];
+  const buf=await state.file.arrayBuffer();
+  const zip=await JSZip.loadAsync(buf);
+  const media=Object.keys(zip.files).filter(p=>/^word\/media\//i.test(p) && /\.(png|jpe?g|bmp|gif)$/i.test(p) && !zip.files[p].dir);
+  if(media.length===0){ log("No embeddable images found in this DOCX.","warn"); return {bytes:null, none:true}; }
+  let touched=0;
+  for(const path of media){
+    try{
+      const origBlob=await zip.file(path).async("blob");
+      const url=URL.createObjectURL(origBlob);
+      const img=await loadImage(url);
+      let w=img.naturalWidth, h=img.naturalHeight;
+      const longest=Math.max(w,h);
+      if(longest>s.maxpx){ const k=s.maxpx/longest; w=Math.round(w*k); h=Math.round(h*k); }
+      const canvas=document.createElement("canvas"); canvas.width=w; canvas.height=h;
+      const ctx=canvas.getContext("2d");
+      ctx.fillStyle="#ffffff"; ctx.fillRect(0,0,w,h);
+      ctx.drawImage(img,0,0,w,h);
+      URL.revokeObjectURL(url);
+      const newBlob=await new Promise(r=>canvas.toBlob(r,"image/jpeg",s.q));
+      if(newBlob && newBlob.size < origBlob.size){
+        zip.file(path, newBlob); touched++;
+        log("Recompressed "+path.split("/").pop()+" · "+fmtBytes(origBlob.size)+" → "+fmtBytes(newBlob.size));
+      }
+    }catch(e){ log("Skipped "+path.split("/").pop()+" ("+e.message+")","warn"); }
+  }
+  log(touched+" of "+media.length+" image(s) reduced.","ok");
+  const outBlob=await zip.generateAsync({type:"blob", compression:"DEFLATE",
+    mimeType:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
+  return {bytes:outBlob, touched, total:media.length};
+}
+
+/* ---------- orchestration ---------- */
+async function run(){
+  const doCondense=$("optCondense").checked;
+  const doSize=$("optSize").checked;
+  if(!doCondense && !doSize){ log("Nothing selected — enable Condense and/or Shrink.","err"); return; }
+
+  const btn=$("runBtn"); btn.disabled=true; const orig=btn.textContent;
+  btn.innerHTML='<span class="spin"></span>Processing…';
+  setStatus("Processing", true);
+  show($("consolePanel")); resetResults();
+  log("Run started · "+state.type.toUpperCase()+" · "+state.file.name,"hi");
+
+  // shared text (extract once if needed)
+  let text=null;
+  const needsText = doCondense || ((state.type==="txt"||state.type==="md") && doSize);
+
+  try{
+    if(needsText){ log("Extracting text…"); text=await extractText(); log("Extracted "+fmtNum(wordCount(text))+" words.","ok"); }
+
+    /* --- content condensation --- */
+    if(doCondense){
+      if(!text || wordCount(text)<5){
+        log("Too little extractable text to condense (scanned PDF?). Skipping condensation.","warn");
+      } else {
+        try{
+          const condensed=await condense(text);
+          const wIn=wordCount(text), wOut=wordCount(condensed);
+          const reduce=wIn? Math.max(0, Math.round((1-wOut/wIn)*100)) : 0;
+          state.condensedText=condensed;
+          state.condensedBlob=new Blob([condensed],{type:"text/markdown"});
+          renderContentCard(wIn,wOut,reduce,condensed);
+          log("Condensation complete · "+fmtNum(wIn)+" → "+fmtNum(wOut)+" words ("+reduce+"% smaller).","ok");
+        }catch(e){
+          log("Condensation failed: "+e.message+". Byte compression (if any) still ran.","err");
+        }
+      }
+    }
+
+    /* --- byte compression --- */
+    if(doSize){
+      const origSize=state.file.size;
+      if(state.type==="pdf"){
+        const method=state.pdfMethod;
+        log("Compressing PDF · method: "+method+(method==="raster"?(" · "+state.strength):"")+"…","warn");
+        let bytes;
+        if(method==="raster") bytes=await compressPdfRaster(state.strength);
+        else bytes=await optimizePdf();
+        finishFile(new Blob([bytes],{type:"application/pdf"}), origSize, "pdf",
+          method==="raster"
+            ? "Pages were rasterized — the result is smaller but text is no longer selectable. Use “Keep text” if you need searchable text."
+            : "Lossless re-optimization — text stays searchable; size reduction is modest.");
+      }
+      else if(state.type==="docx"){
+        log("Compressing DOCX images · "+state.strength+"…","warn");
+        const r=await compressDocx(state.strength);
+        if(r.none){
+          log("No images to compress; .docx left unchanged.","warn");
+        } else {
+          finishFile(r.bytes, origSize, "docx",
+            "Embedded images were re-encoded to JPEG (transparency removed). Text and layout are untouched.");
+        }
+      }
+      else { // txt / md
+        if(state.condensedBlob){
+          finishFile(state.condensedBlob, origSize, (state.type==="md"?"md":"txt"),
+            "For text files, smaller size comes from the condensed content above.");
+        } else {
+          log("Enable Condense to shrink a text file.","warn");
+        }
+      }
+    }
+
+    setStatus("Done", false);
+    log("Run finished.","ok");
+  }catch(e){
+    log("Fatal: "+e.message,"err");
+    setStatus("Error", false);
+  }finally{
+    btn.disabled=false; btn.textContent=orig;
+  }
+}
+
+function renderContentCard(wIn,wOut,reduce,text){
+  show($("resultsPanel")); show($("contentCard"));
+  $("cWordsOut").textContent=fmtNum(wOut);
+  const rEl=$("cReduce");
+  rEl.textContent=reduce+"%"; rEl.className="v "+(reduce>=40?"green":reduce>=15?"amber":"red");
+  const bar=$("cBar").parentElement; bar.className="bar "+(reduce>=40?"":reduce>=15?"amber":"red");
+  $("cBar").style.width=Math.min(100,reduce)+"%";
+  $("cNote").textContent=fmtNum(wIn)+" words in → "+fmtNum(wOut)+" words out · "+state.level+" intensity";
+  $("cPreview").textContent = text.length>4000 ? text.slice(0,4000)+"\n\n… [truncated preview — full text in download]" : text;
+}
+
+function finishFile(blob, origSize, ext, note){
+  show($("resultsPanel")); show($("fileCard"));
+  const newSize=blob.size;
+  const reduce=origSize? Math.round((1-newSize/origSize)*100) : 0;
+  state.outFileBlob=blob;
+  const base=state.file.name.replace(/\.[^.]+$/,"");
+  state.outFileName=base+".compressed."+ext;
+  $("fSizeOut").textContent=fmtBytes(newSize);
+  const rEl=$("fReduce");
+  if(reduce>0){ rEl.textContent=reduce+"%"; rEl.className="v "+(reduce>=40?"green":"amber"); }
+  else { rEl.textContent=reduce+"%"; rEl.className="v red"; }
+  const barWrap=$("fBar").parentElement;
+  barWrap.className="bar "+(reduce>=40?"":reduce>0?"amber":"red");
+  $("fBar").style.width=Math.max(0,Math.min(100,reduce))+"%";
+  const noteEl=$("fNote");
+  if(reduce<=0){
+    noteEl.className="rnote warn";
+    noteEl.textContent="This file didn't get smaller ("+fmtBytes(origSize)+" → "+fmtBytes(newSize)+"). "+
+      (state.type==="pdf" && state.pdfMethod==="raster" ? "It's likely text-heavy — try “Keep text”, or it's already lean." : "It may already be well-compressed.");
+  } else {
+    noteEl.className="rnote";
+    noteEl.textContent=fmtBytes(origSize)+" → "+fmtBytes(newSize)+". "+note;
+  }
+}
+
+/* ---------- downloads ---------- */
+function download(blob, name){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a);
+  a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+
+/* ---------- wire up ---------- */
+const dz=$("dropzone"), fi=$("fileInput");
+dz.addEventListener("click", ()=>fi.click());
+fi.addEventListener("change", e=>{ if(e.target.files[0]) loadFile(e.target.files[0]); });
+["dragover","dragenter"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault(); dz.classList.add("hot");}));
+["dragleave","drop"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault(); dz.classList.remove("hot");}));
+dz.addEventListener("drop", e=>{ const f=e.dataTransfer.files[0]; if(f) loadFile(f); });
+$("fclear").addEventListener("click", clearFile);
+
+$("optCondense").addEventListener("change", e=>$("condenseBody").classList.toggle("off", !e.target.checked));
+$("optSize").addEventListener("change", e=>$("sizeBody").classList.toggle("off", !e.target.checked));
+
+function wireSeg(segId, key, after){
+  $(segId).querySelectorAll("button").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      $(segId).querySelectorAll("button").forEach(x=>x.classList.remove("on"));
+      b.classList.add("on");
+      state[key]=b.dataset[Object.keys(b.dataset)[0]];
+      if(after) after();
+    });
+  });
+}
+wireSeg("levelSeg","level");
+wireSeg("strengthSeg","strength");
+$("pdfMethodSeg").querySelectorAll("button").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    $("pdfMethodSeg").querySelectorAll("button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on"); state.pdfMethod=b.dataset.method; updateStrengthVisibility();
+  });
+});
+
+$("runBtn").addEventListener("click", run);
+$("cDownload").addEventListener("click", ()=>{ if(state.condensedBlob){ const base=state.file.name.replace(/\.[^.]+$/,""); download(state.condensedBlob, base+".condensed.md"); }});
+$("cCopy").addEventListener("click", ()=>{ if(state.condensedText){ navigator.clipboard.writeText(state.condensedText); const b=$("cCopy"); const t=b.textContent; b.textContent="Copied"; setTimeout(()=>b.textContent=t,1200);} });
+$("fDownload").addEventListener("click", ()=>{ if(state.outFileBlob) download(state.outFileBlob, state.outFileName); });
+
+/* library availability notice */
+window.addEventListener("load", ()=>{
+  const miss=[];
+  if(!window.pdfjsLib) miss.push("PDF");
+  if(!window.PDFLib) miss.push("PDF-writer");
+  if(!window.mammoth) miss.push("DOCX");
+  if(!window.JSZip) miss.push("Zip");
+  if(miss.length) log("Note: some engines didn't load ("+miss.join(", ")+"). Affected formats may be limited — check your network.","warn");
+});
+</script>
+</body>
+</html>
