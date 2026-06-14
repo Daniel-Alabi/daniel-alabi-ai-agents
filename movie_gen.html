@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Reel Agent — realistic video from a prompt or a photo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#0E0F13; --ink-2:#15171E; --ink-3:#1C1F29;
+    --line:#272B36; --line-2:#363B49;
+    --paper:#ECE7DD; --muted:#8A90A0; --muted-2:#5C6273;
+    --tungsten:#F2A65A; --tungsten-dim:#7a5a36;
+    --cyan:#5BD6C8; --rec:#E5594F;
+    --r:14px;
+    --display:'Space Grotesk',system-ui,sans-serif;
+    --body:'Inter',system-ui,sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:
+      radial-gradient(900px 500px at 85% -10%, rgba(242,166,90,.06), transparent 60%),
+      radial-gradient(700px 500px at -10% 110%, rgba(91,214,200,.05), transparent 60%),
+      var(--ink);
+    color:var(--paper); font-family:var(--body);
+    -webkit-font-smoothing:antialiased; line-height:1.5;
+    min-height:100vh;
+  }
+  a{color:var(--cyan)}
+  .wrap{max-width:1180px; margin:0 auto; padding:22px 20px 64px}
+
+  /* ---- Slate header (clapperboard) ---- */
+  .slate{
+    display:flex; align-items:center; gap:18px;
+    border:1px solid var(--line); border-radius:var(--r);
+    background:linear-gradient(180deg,var(--ink-2),#101219);
+    padding:14px 18px; position:relative; overflow:hidden;
+  }
+  .slate::before{
+    content:""; position:absolute; inset:0 0 auto 0; height:10px;
+    background:repeating-linear-gradient(115deg,var(--paper) 0 22px,var(--ink) 22px 44px);
+    opacity:.85;
+  }
+  .slate-id{padding-top:6px}
+  .slate h1{
+    font-family:var(--display); font-weight:700; letter-spacing:.14em;
+    font-size:20px; margin:0; text-transform:uppercase;
+  }
+  .slate h1 .dot{color:var(--tungsten)}
+  .slate p{margin:2px 0 0; color:var(--muted); font-size:12.5px}
+  .slate-meta{margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; padding-top:6px}
+  .pill{
+    font-family:var(--mono); font-size:11px; letter-spacing:.04em;
+    border:1px solid var(--line-2); border-radius:100px; padding:5px 11px;
+    color:var(--muted); display:inline-flex; align-items:center; gap:7px;
+  }
+  .pill .led{width:7px;height:7px;border-radius:50%;background:var(--muted-2)}
+  .pill.ok{color:var(--cyan); border-color:rgba(91,214,200,.4)}
+  .pill.ok .led{background:var(--cyan); box-shadow:0 0 8px var(--cyan)}
+  .pill.warn{color:var(--tungsten); border-color:rgba(242,166,90,.4)}
+  .pill.warn .led{background:var(--tungsten); box-shadow:0 0 8px var(--tungsten)}
+
+  /* ---- Layout ---- */
+  .grid{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.05fr); gap:18px; margin-top:18px}
+  @media (max-width:940px){ .grid{grid-template-columns:1fr} }
+
+  .panel{
+    border:1px solid var(--line); border-radius:var(--r);
+    background:linear-gradient(180deg,var(--ink-2),#111319);
+  }
+  .panel-h{
+    display:flex; align-items:center; gap:10px;
+    padding:13px 16px; border-bottom:1px solid var(--line);
+  }
+  .panel-h .ix{
+    font-family:var(--mono); font-size:11px; color:var(--tungsten);
+    border:1px solid var(--tungsten-dim); border-radius:6px; padding:2px 7px;
+  }
+  .panel-h h2{font-family:var(--display); font-weight:600; font-size:14.5px; letter-spacing:.05em; margin:0; text-transform:uppercase}
+  .panel-b{padding:16px}
+
+  /* ---- Form ---- */
+  label.fl{display:block; font-family:var(--mono); font-size:11px; letter-spacing:.06em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 7px}
+  .field{margin-bottom:16px}
+  textarea, input[type=text], input[type=number], select{
+    width:100%; background:var(--ink-3); color:var(--paper);
+    border:1px solid var(--line-2); border-radius:10px; padding:11px 12px;
+    font-family:var(--body); font-size:14px; resize:vertical;
+  }
+  textarea{min-height:84px; line-height:1.45}
+  select{font-family:var(--mono); font-size:12.5px; cursor:pointer; appearance:none;
+    background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+    background-position:calc(100% - 18px) 17px,calc(100% - 13px) 17px; background-size:5px 5px,5px 5px; background-repeat:no-repeat}
+  textarea:focus, input:focus, select:focus{outline:2px solid var(--tungsten); outline-offset:1px; border-color:transparent}
+  .hint{font-size:12px; color:var(--muted-2); margin:7px 0 0}
+  .row{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  .row-3{display:grid; grid-template-columns:repeat(3,1fr); gap:12px}
+  .check{display:flex; align-items:center; gap:9px; font-size:13.5px; color:var(--paper); cursor:pointer; user-select:none}
+  .check input{width:16px;height:16px;accent-color:var(--tungsten)}
+
+  details.adv{margin-top:6px; border-top:1px dashed var(--line); padding-top:12px}
+  details.adv summary{font-family:var(--mono); font-size:11px; letter-spacing:.06em;
+    text-transform:uppercase; color:var(--muted); cursor:pointer; list-style:none}
+  details.adv summary::-webkit-details-marker{display:none}
+  details.adv summary::before{content:"▸ "; color:var(--tungsten)}
+  details.adv[open] summary::before{content:"▾ "}
+  details.adv textarea{margin-top:10px; font-family:var(--mono); font-size:12px; min-height:130px}
+
+  /* ---- Buttons ---- */
+  .btn{font-family:var(--display); font-weight:600; letter-spacing:.04em; font-size:13.5px;
+    border-radius:10px; border:1px solid var(--line-2); background:var(--ink-3); color:var(--paper);
+    padding:11px 15px; cursor:pointer; transition:transform .06s ease, background .15s, border-color .15s; display:inline-flex; align-items:center; gap:8px; justify-content:center}
+  .btn:hover{border-color:var(--muted)}
+  .btn:active{transform:translateY(1px)}
+  .btn:disabled{opacity:.45; cursor:not-allowed}
+  .btn.ghost{background:transparent}
+  .btn.agent{border-color:rgba(91,214,200,.45); color:var(--cyan)}
+  .btn.agent:hover{background:rgba(91,214,200,.08)}
+  .btn-rec{width:100%; padding:15px; font-size:15px; letter-spacing:.08em; text-transform:uppercase;
+    color:#1a1206; background:linear-gradient(180deg,#F6B26B,var(--tungsten)); border:none}
+  .btn-rec .shutter{width:13px;height:13px;border-radius:50%;background:#1a1206}
+  .btn-rec:hover{filter:brightness(1.05)}
+
+  /* ---- Source image / camera controls ---- */
+  .src-actions{display:flex; gap:8px; flex-wrap:wrap}
+  .src-actions .btn{flex:1; min-width:120px; padding:9px 12px; font-size:12.5px}
+  .drop{border:1px dashed var(--line-2); border-radius:10px; padding:14px; text-align:center;
+    color:var(--muted); font-size:12.5px; margin-top:10px; transition:border-color .15s,background .15s}
+  .drop.drag{border-color:var(--tungsten); background:rgba(242,166,90,.06); color:var(--paper)}
+
+  /* ---- Viewfinder (signature element) ---- */
+  .vf-shell{padding:16px}
+  .viewfinder{
+    position:relative; aspect-ratio:16/9; border-radius:10px; overflow:hidden;
+    background:
+      linear-gradient(0deg,rgba(0,0,0,.4),rgba(0,0,0,.4)),
+      repeating-conic-gradient(#15171E 0% 25%, #181b23 0% 50%) 50%/26px 26px;
+  }
+  .viewfinder video, .viewfinder img{width:100%; height:100%; object-fit:contain; display:block; background:#000}
+  .vf-empty{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; color:var(--muted-2); text-align:center; padding:18px}
+  .vf-empty .lens{width:54px;height:54px;border-radius:50%;border:2px solid var(--line-2); position:relative}
+  .vf-empty .lens::after{content:""; position:absolute; inset:11px; border-radius:50%; border:1px solid var(--line-2)}
+  .vf-empty p{margin:0; font-size:12.5px; max-width:240px}
+  /* corner brackets */
+  .bracket{position:absolute; width:22px; height:22px; border-color:var(--paper); opacity:.85; pointer-events:none}
+  .bracket.tl{top:10px;left:10px;border-top:2px solid;border-left:2px solid}
+  .bracket.tr{top:10px;right:10px;border-top:2px solid;border-right:2px solid}
+  .bracket.bl{bottom:10px;left:10px;border-bottom:2px solid;border-left:2px solid}
+  .bracket.br{bottom:10px;right:10px;border-bottom:2px solid;border-right:2px solid}
+  .hud{position:absolute; top:12px; left:50%; transform:translateX(-50%); display:flex; gap:12px; align-items:center;
+    font-family:var(--mono); font-size:11px; letter-spacing:.08em; color:var(--paper); text-shadow:0 1px 4px #000; pointer-events:none}
+  .hud .rec{display:inline-flex; align-items:center; gap:6px}
+  .hud .rec .led{width:8px;height:8px;border-radius:50%;background:var(--muted-2)}
+  .hud.live .rec .led{background:var(--rec); animation:blink 1s steps(2,end) infinite}
+  @keyframes blink{50%{opacity:.25}}
+  .hud .tag{color:var(--tungsten)}
+
+  .vf-foot{display:flex; gap:8px; align-items:center; margin-top:12px; flex-wrap:wrap}
+  .vf-foot .btn{padding:8px 12px; font-size:12px}
+
+  /* ---- Status log ---- */
+  .statusbar{display:flex; align-items:center; gap:10px; margin-top:14px; font-family:var(--mono); font-size:12px; color:var(--muted)}
+  .statusbar .s-led{width:9px;height:9px;border-radius:50%;background:var(--muted-2); flex:none}
+  .statusbar.run .s-led{background:var(--tungsten); animation:blink 1s steps(2,end) infinite}
+  .statusbar.ok .s-led{background:var(--cyan); box-shadow:0 0 8px var(--cyan)}
+  .statusbar.err .s-led{background:var(--rec); box-shadow:0 0 8px var(--rec)}
+  .log{margin-top:10px; background:#0a0b0f; border:1px solid var(--line); border-radius:10px;
+    font-family:var(--mono); font-size:11.5px; color:var(--muted); padding:10px 12px; max-height:150px; overflow:auto; white-space:pre-wrap; display:none}
+  .log.show{display:block}
+
+  /* ---- History ---- */
+  .hist{margin-top:18px}
+  .hist h3{font-family:var(--mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin:0 0 10px}
+  .hist-strip{display:flex; gap:10px; overflow-x:auto; padding-bottom:6px}
+  .hist-card{flex:none; width:150px; border:1px solid var(--line); border-radius:10px; overflow:hidden; background:var(--ink-2); cursor:pointer}
+  .hist-card video{width:100%; height:84px; object-fit:cover; display:block; background:#000}
+  .hist-card .cap{padding:7px 8px; font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .hist-empty{color:var(--muted-2); font-size:12.5px}
+
+  .note{font-size:12px; color:var(--muted-2); margin-top:18px; line-height:1.6}
+  .err-text{color:var(--rec)}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="slate">
+    <div class="slate-id">
+      <h1>Reel<span class="dot">·</span>Agent</h1>
+      <p>Direct a realistic shot from a prompt — or hand it a photo and let it roll.</p>
+    </div>
+    <div class="slate-meta" id="metaPills"></div>
+  </header>
+
+  <div class="grid">
+    <!-- CONSOLE -->
+    <section class="panel">
+      <div class="panel-h"><span class="ix">01</span><h2>Console</h2></div>
+      <div class="panel-b">
+
+        <div class="field">
+          <label class="fl" for="model">Model</label>
+          <select id="model"></select>
+          <p class="hint" id="modelNote"></p>
+        </div>
+
+        <div class="field">
+          <label class="fl" for="prompt">The shot</label>
+          <textarea id="prompt" placeholder="A lone fisherman casting a line on a misty lake at dawn, mountains behind…"></textarea>
+          <div style="display:flex; gap:8px; margin-top:9px; flex-wrap:wrap">
+            <button class="btn agent" id="enhanceBtn" type="button"><span>✦</span> Direct with agent</button>
+            <button class="btn ghost" id="clearPrompt" type="button">Clear</button>
+          </div>
+          <p class="hint" id="agentNote"></p>
+        </div>
+
+        <!-- Source image / camera -->
+        <div class="field" id="sourceField">
+          <label class="fl">Source photo <span style="color:var(--muted-2)">— optional, turns this into image-to-video</span></label>
+          <div class="src-actions">
+            <button class="btn" id="cameraBtn" type="button">📷 Use camera</button>
+            <button class="btn" id="captureBtn" type="button" disabled>◉ Capture frame</button>
+            <button class="btn ghost" id="uploadBtn" type="button">⤓ Upload</button>
+          </div>
+          <input type="file" id="fileInput" accept="image/*" hidden />
+          <div class="drop" id="drop">Drag a photo here, capture one from your camera, or generate from text only.</div>
+        </div>
+
+        <!-- schema-driven parameter controls injected here -->
+        <div id="paramControls"></div>
+
+        <details class="adv">
+          <summary>Advanced — raw model input</summary>
+          <textarea id="advJson" spellcheck="false"></textarea>
+          <p class="hint">Edited fields here are sent verbatim. Driven by the model's live schema.</p>
+        </details>
+
+        <button class="btn-rec btn" id="generateBtn" type="button" style="margin-top:6px">
+          <span class="shutter"></span> Roll camera
+        </button>
+      </div>
+    </section>
+
+    <!-- VIEWFINDER -->
+    <section class="panel">
+      <div class="panel-h"><span class="ix">02</span><h2>Viewfinder</h2></div>
+      <div class="vf-shell">
+        <div class="viewfinder" id="viewfinder">
+          <div class="hud" id="hud"><span class="rec"><span class="led"></span>STBY</span><span class="tag" id="hudTag">NO SIGNAL</span></div>
+          <span class="bracket tl"></span><span class="bracket tr"></span><span class="bracket bl"></span><span class="bracket br"></span>
+          <video id="liveVideo" autoplay playsinline muted style="display:none"></video>
+          <img id="srcImg" style="display:none" alt="source frame" />
+          <video id="outVideo" controls playsinline style="display:none"></video>
+          <div class="vf-empty" id="vfEmpty"><div class="lens"></div><p>Your shot will render here. Write a prompt or load a photo to begin.</p></div>
+        </div>
+
+        <div class="vf-foot" id="vfFoot"></div>
+
+        <div class="statusbar" id="statusbar"><span class="s-led"></span><span id="statusText">Standby — nothing rolling.</span></div>
+        <pre class="log" id="log"></pre>
+
+        <div class="hist">
+          <h3>Takes</h3>
+          <div class="hist-strip" id="histStrip"><span class="hist-empty">No takes yet.</span></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <p class="note">
+    Reel Agent orchestrates a hosted video model through your own Replicate account and uses Claude (or a built-in
+    rule-based enhancer) to write the shot. Generations are billed by Replicate and subject to each model provider's
+    usage policy — generate responsibly, especially with real people's likenesses.
+  </p>
+</div>
+
+<canvas id="snapCanvas" hidden></canvas>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const state = {
+  config: null,
+  schema: null,        // {fields, imageField, promptField, required}
+  input: {},           // live model input (defaults, minus prompt/image)
+  sourceDataUrl: null,
+  cameraStream: null,
+  pollTimer: null,
+  history: [],
+};
+
+const COMMON = ["duration","resolution","aspect_ratio","generate_audio","audio","negative_prompt","seed","fps"];
+const LABELS = {duration:"Duration (s)",resolution:"Resolution",aspect_ratio:"Aspect ratio",generate_audio:"Generate audio",audio:"Generate audio",negative_prompt:"Negative prompt",seed:"Seed",fps:"Frame rate"};
+
+// ---------- boot ----------
+init();
+async function init(){
+  try{
+    const cfg = await fetch("/api/config").then(r=>r.json());
+    state.config = cfg;
+    renderMeta(cfg);
+    const sel = $("model");
+    cfg.models.forEach(m=>{ const o=document.createElement("option"); o.value=m.id; o.textContent=m.label; o.dataset.note=m.note||""; sel.appendChild(o); });
+    sel.addEventListener("change", onModelChange);
+    if(cfg.models.length) await onModelChange();
+  }catch(e){ setStatus("err","Could not reach the server. Is it running?"); }
+  wireEvents();
+}
+
+function renderMeta(cfg){
+  const wrap=$("metaPills");
+  const rep = cfg.replicateConfigured
+    ? `<span class="pill ok"><span class="led"></span>Replicate ready</span>`
+    : `<span class="pill warn"><span class="led"></span>Replicate key missing</span>`;
+  const ag = cfg.agentEnabled
+    ? `<span class="pill ok"><span class="led"></span>Agent: ${cfg.agentModel}</span>`
+    : `<span class="pill"><span class="led"></span>Agent: rule-based</span>`;
+  wrap.innerHTML = rep + ag;
+}
+
+// ---------- model + schema ----------
+async function onModelChange(){
+  const sel=$("model");
+  $("modelNote").textContent = sel.selectedOptions[0]?.dataset.note || "";
+  setStatus("","Loading model schema…");
+  resetOutput();
+  try{
+    const s = await fetch("/api/schema?model="+encodeURIComponent(sel.value)).then(r=>r.json());
+    if(s.error){ setStatus("err", s.error); return; }
+    state.schema = s;
+    buildForm(s);
+    // image support?
+    $("sourceField").style.display = s.imageField ? "" : "none";
+    if(!s.imageField) clearSource();
+    setStatus("","Standby — ready to roll.");
+  }catch(e){ setStatus("err","Failed to load schema: "+e.message); }
+}
+
+function buildForm(schema){
+  state.input = {};
+  const skip = new Set([schema.promptField, schema.imageField, "last_image","end_image","image_2","image_3"]);
+  const host=$("paramControls"); host.innerHTML="";
+  const commonFields = schema.fields.filter(f=>!skip.has(f.name) && COMMON.includes(f.name));
+  // seed input model with ALL defaults (so required fields are always present)
+  schema.fields.forEach(f=>{
+    if(skip.has(f.name)) return;
+    if(f.default!==undefined) state.input[f.name]=f.default;
+  });
+
+  // render friendly controls for common fields
+  const rows=[];
+  commonFields.forEach(f=>{
+    const id="p_"+f.name;
+    let control="";
+    if(f.name==="generate_audio"||f.name==="audio"||f.type==="boolean"){
+      const checked = state.input[f.name] ? "checked":"";
+      control=`<label class="check"><input type="checkbox" id="${id}" data-name="${f.name}" ${checked}/> ${LABELS[f.name]||f.title}</label>`;
+      host.insertAdjacentHTML("beforeend",`<div class="field">${control}</div>`);
+      return;
+    }
+    if(f.enum && f.enum.length){
+      const opts=f.enum.map(v=>`<option value="${v}" ${String(state.input[f.name])===String(v)?"selected":""}>${v}</option>`).join("");
+      control=`<select id="${id}" data-name="${f.name}" data-kind="${f.type}">${opts}</select>`;
+    } else if(f.name==="negative_prompt"){
+      control=`<textarea id="${id}" data-name="${f.name}" placeholder="what to avoid…" style="min-height:54px">${state.input[f.name]??""}</textarea>`;
+    } else if(f.type==="integer"||f.type==="number"){
+      control=`<input type="number" id="${id}" data-name="${f.name}" data-kind="${f.type}" value="${state.input[f.name]??""}" />`;
+    } else {
+      control=`<input type="text" id="${id}" data-name="${f.name}" value="${state.input[f.name]??""}" />`;
+    }
+    rows.push(`<div class="field"><label class="fl" for="${id}">${LABELS[f.name]||f.title}</label>${control}</div>`);
+  });
+  // group selects/numbers into rows of up to 3 for tidiness
+  host.insertAdjacentHTML("beforeend", `<div class="row-3">${rows.join("")}</div>`);
+
+  // wire control changes
+  host.querySelectorAll("[data-name]").forEach(el=>{
+    el.addEventListener("input", ()=>{
+      const name=el.dataset.name; let v;
+      if(el.type==="checkbox") v=el.checked;
+      else if(el.dataset.kind==="integer") v=el.value===""?undefined:parseInt(el.value,10);
+      else if(el.dataset.kind==="number") v=el.value===""?undefined:parseFloat(el.value);
+      else v=el.value;
+      if(v===undefined||v==="") delete state.input[name]; else state.input[name]=v;
+      syncAdv();
+    });
+  });
+  syncAdv();
+}
+
+function syncAdv(){ $("advJson").value = JSON.stringify(state.input, null, 2); }
+$("advJson")?.addEventListener("input", ()=>{ try{ state.input=JSON.parse($("advJson").value); }catch{} });
+
+// ---------- agent enhance ----------
+function wireEvents(){
+  $("enhanceBtn").addEventListener("click", enhance);
+  $("clearPrompt").addEventListener("click", ()=>{ $("prompt").value=""; $("agentNote").textContent=""; });
+  $("generateBtn").addEventListener("click", generate);
+
+  // source: upload
+  $("uploadBtn").addEventListener("click", ()=>$("fileInput").click());
+  $("fileInput").addEventListener("change", e=>{ const f=e.target.files[0]; if(f) readFile(f); });
+  // drag & drop
+  const drop=$("drop");
+  ["dragover","dragenter"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("drag");}));
+  ["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("drag");}));
+  drop.addEventListener("drop",e=>{ const f=e.dataTransfer.files[0]; if(f&&f.type.startsWith("image/")) readFile(f); });
+  // camera
+  $("cameraBtn").addEventListener("click", toggleCamera);
+  $("captureBtn").addEventListener("click", captureFrame);
+}
+
+async function enhance(){
+  const prompt=$("prompt").value.trim();
+  if(!prompt){ $("agentNote").innerHTML='<span class="err-text">Write a few words first.</span>'; return; }
+  const btn=$("enhanceBtn"); btn.disabled=true; const old=btn.innerHTML; btn.innerHTML="✦ Directing…";
+  const mode = state.sourceDataUrl ? "i2v":"t2v";
+  try{
+    const r=await fetch("/api/enhance",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt,mode,model:$("model").value})}).then(r=>r.json());
+    if(r.error){ $("agentNote").innerHTML=`<span class="err-text">${r.error}</span>`; }
+    else{
+      $("prompt").value=r.enhanced_prompt;
+      applySuggestions(r);
+      const tag = r.source==="claude" ? "Claude" : "rule-based";
+      $("agentNote").textContent = `Directed (${tag})${r.camera?` · camera: ${r.camera}`:""}${r.notice?` · ${r.notice}`:""}`;
+    }
+  }catch(e){ $("agentNote").innerHTML=`<span class="err-text">Agent failed: ${e.message}</span>`; }
+  btn.disabled=false; btn.innerHTML=old;
+}
+
+function applySuggestions(r){
+  // only apply if the field exists in this model's schema with a matching enum
+  const setIfValid=(name,val)=>{
+    const el=document.querySelector(`[data-name="${name}"]`);
+    if(!el||val==null) return;
+    if(el.tagName==="SELECT"){ const ok=[...el.options].some(o=>o.value===String(val)); if(ok){ el.value=String(val); el.dispatchEvent(new Event("input")); } }
+    else { el.value=val; el.dispatchEvent(new Event("input")); }
+  };
+  if(r.suggested_aspect_ratio) setIfValid("aspect_ratio", r.suggested_aspect_ratio);
+  if(r.suggested_duration) setIfValid("duration", r.suggested_duration);
+}
+
+// ---------- source photo / camera ----------
+function readFile(file){
+  const fr=new FileReader();
+  fr.onload=()=>setSource(fr.result);
+  fr.readAsDataURL(file);
+}
+function setSource(dataUrl){
+  state.sourceDataUrl=dataUrl;
+  stopCamera();
+  showInFinder("img", dataUrl);
+  $("drop").textContent="Source frame loaded — this take will animate it. Drag another to replace.";
+  updateFoot();
+}
+function clearSource(){ state.sourceDataUrl=null; $("drop").textContent="Drag a photo here, capture one from your camera, or generate from text only."; if(!state.outUrl) resetFinder(); updateFoot(); }
+
+async function toggleCamera(){
+  if(state.cameraStream){ stopCamera(); return; }
+  try{
+    state.cameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"},audio:false});
+    const v=$("liveVideo"); v.srcObject=state.cameraStream;
+    showInFinder("live");
+    $("cameraBtn").textContent="■ Stop camera";
+    $("captureBtn").disabled=false;
+    setHud(true,"LIVE");
+  }catch(e){ setStatus("err","Camera unavailable: "+e.message+" (camera needs http://localhost or https)"); }
+}
+function stopCamera(){
+  if(state.cameraStream){ state.cameraStream.getTracks().forEach(t=>t.stop()); state.cameraStream=null; }
+  $("liveVideo").srcObject=null;
+  $("cameraBtn").textContent="📷 Use camera";
+  $("captureBtn").disabled=true;
+  setHud(false, state.sourceDataUrl?"FRAME":"STBY");
+}
+function captureFrame(){
+  const v=$("liveVideo"); if(!v.videoWidth) return;
+  const c=$("snapCanvas"); c.width=v.videoWidth; c.height=v.videoHeight;
+  c.getContext("2d").drawImage(v,0,0);
+  setSource(c.toDataURL("image/jpeg",0.92));
+}
+
+// ---------- viewfinder helpers ----------
+function showInFinder(kind, src){
+  $("vfEmpty").style.display="none";
+  $("liveVideo").style.display = kind==="live"?"block":"none";
+  $("srcImg").style.display = kind==="img"?"block":"none";
+  $("outVideo").style.display = kind==="out"?"block":"none";
+  if(kind==="img"){ $("srcImg").src=src; setHud(false,"FRAME"); }
+  if(kind==="out"){ $("outVideo").src=src; setHud(false,"TAKE OK"); }
+}
+function resetFinder(){
+  ["liveVideo","srcImg","outVideo"].forEach(id=>$(id).style.display="none");
+  $("vfEmpty").style.display="flex"; setHud(false,"NO SIGNAL");
+}
+function resetOutput(){ state.outUrl=null; if(!state.sourceDataUrl) resetFinder(); else showInFinder("img",state.sourceDataUrl); updateFoot(); }
+function setHud(live,tag){ const h=$("hud"); h.classList.toggle("live",live); h.querySelector(".rec").childNodes[1].nodeValue= live?"REC":"STBY"; $("hudTag").textContent=tag; }
+
+function updateFoot(){
+  const foot=$("vfFoot"); foot.innerHTML="";
+  if(state.outUrl){
+    foot.innerHTML=`<a class="btn" href="${state.outUrl}" target="_blank" rel="noopener" download="reel-take.mp4">⤓ Open / download MP4</a>`;
+  } else if(state.sourceDataUrl){
+    foot.innerHTML=`<button class="btn ghost" id="clearSrc" type="button">✕ Clear source frame</button>`;
+    $("clearSrc").addEventListener("click", clearSource);
+  }
+}
+
+// ---------- generate + poll ----------
+async function generate(){
+  if(!state.config?.replicateConfigured){ setStatus("err","Add a REPLICATE_API_TOKEN to the server (.env) and restart."); return; }
+  const prompt=$("prompt").value.trim();
+  const schema=state.schema;
+  if(!schema){ setStatus("err","No model loaded."); return; }
+  if(!prompt && !state.sourceDataUrl){ setStatus("err","Give it a prompt, a photo, or both."); return; }
+
+  // assemble input from advanced JSON (carries all defaults), then prompt + image
+  let input;
+  try{ input = JSON.parse($("advJson").value || "{}"); }catch{ setStatus("err","Advanced JSON is invalid."); return; }
+  if(prompt) input[schema.promptField]=prompt;
+  if(state.sourceDataUrl && schema.imageField) input[schema.imageField]=state.sourceDataUrl;
+  // strip empty strings
+  Object.keys(input).forEach(k=>{ if(input[k]==="") delete input[k]; });
+
+  const btn=$("generateBtn"); btn.disabled=true; const old=btn.innerHTML; btn.innerHTML='<span class="shutter"></span> Rolling…';
+  state.outUrl=null; updateFoot();
+  setStatus("run","Submitting to "+$("model").value+"…"); setHud(true,"RENDERING"); showLog(true,"");
+
+  try{
+    const start=await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:$("model").value,input})}).then(r=>r.json());
+    if(start.error){ failGen(start.error + (start.raw?.invalid_fields?` (${JSON.stringify(start.raw.invalid_fields)})`:""), btn, old); return; }
+    pollPrediction(start.id, btn, old);
+  }catch(e){ failGen("Request failed: "+e.message, btn, old); }
+}
+
+function pollPrediction(id, btn, old){
+  const started=Date.now(); const TIMEOUT=12*60*1000;
+  clearInterval(state.pollTimer);
+  state.pollTimer=setInterval(async ()=>{
+    if(Date.now()-started>TIMEOUT){ clearInterval(state.pollTimer); failGen("Timed out after 12 minutes.",btn,old); return; }
+    try{
+      const p=await fetch("/api/prediction/"+id).then(r=>r.json());
+      if(p.error){ clearInterval(state.pollTimer); failGen(p.error,btn,old); return; }
+      if(p.logs?.length) showLog(true, p.logs.join("\n"));
+      if(p.status==="succeeded"){
+        clearInterval(state.pollTimer);
+        if(!p.output){ failGen("Model finished but returned no video.",btn,old); return; }
+        state.outUrl=p.output; showInFinder("out",p.output);
+        setStatus("ok","Take complete."); btn.disabled=false; btn.innerHTML=old; updateFoot();
+        addHistory(p.output);
+      } else if(p.status==="failed"||p.status==="canceled"){
+        clearInterval(state.pollTimer);
+        failGen(p.error || ("Generation "+p.status+"."), btn, old);
+      } else {
+        const secs=Math.round((Date.now()-started)/1000);
+        setStatus("run", `${p.status}… ${secs}s elapsed`);
+      }
+    }catch(e){ /* transient network blip — keep polling */ }
+  }, 2000);
+}
+
+function failGen(msg, btn, old){
+  setStatus("err", msg); setHud(false,"FAILED");
+  if(btn){ btn.disabled=false; btn.innerHTML=old; }
+}
+
+function addHistory(url){
+  state.history.unshift({url, prompt:$("prompt").value.trim().slice(0,60), model:$("model").value});
+  const strip=$("histStrip"); strip.innerHTML="";
+  if(!state.history.length){ strip.innerHTML='<span class="hist-empty">No takes yet.</span>'; return; }
+  state.history.forEach(h=>{
+    const el=document.createElement("div"); el.className="hist-card";
+    el.innerHTML=`<video src="${h.url}" muted></video><div class="cap">${h.prompt||h.model}</div>`;
+    el.addEventListener("click", ()=>{ state.outUrl=h.url; showInFinder("out",h.url); updateFoot(); setStatus("ok","Loaded a previous take."); });
+    el.querySelector("video").addEventListener("mouseenter",e=>e.target.play());
+    el.querySelector("video").addEventListener("mouseleave",e=>{e.target.pause();e.target.currentTime=0;});
+    strip.appendChild(el);
+  });
+}
+
+// ---------- status ----------
+function setStatus(kind, text){
+  const bar=$("statusbar"); bar.className="statusbar"+(kind?" "+kind:"");
+  $("statusText").textContent=text;
+}
+function showLog(show, text){ const l=$("log"); l.classList.toggle("show",show && !!text); l.textContent=text||""; l.scrollTop=l.scrollHeight; }
+</script>
+</body>
+</html>
