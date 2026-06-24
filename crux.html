@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Crux — break the loop, make the call</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#ECEFEE;
+    --paper-2:#E3E7E6;
+    --card:#FFFFFF;
+    --ink:#1B1F23;
+    --ink-soft:#565E66;
+    --ink-faint:#8B939B;
+    --line:#D6DBDB;
+    --go:#E78A24;
+    --go-deep:#C9731A;
+    --go-tint:#FBEBD7;
+    --shadow:0 1px 2px rgba(27,31,35,.04), 0 14px 38px -18px rgba(27,31,35,.22);
+    --r-card:20px;
+    --r-ctrl:13px;
+    --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --body:"Hanken Grotesk", system-ui, -apple-system, sans-serif;
+    --mono:"JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    font-family:var(--body);
+    background:
+      radial-gradient(120% 90% at 50% -10%, var(--paper) 0%, var(--paper-2) 100%) fixed;
+    color:var(--ink);
+    min-height:100dvh;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.5;
+    padding:max(20px,env(safe-area-inset-top)) 18px max(28px,env(safe-area-inset-bottom));
+    display:flex;
+    justify-content:center;
+  }
+
+  .wrap{width:100%;max-width:560px;margin:0 auto}
+
+  /* ---------- header / signature ---------- */
+  header{display:flex;align-items:center;gap:14px;padding:6px 4px 26px}
+  .mark{width:58px;height:58px;flex:0 0 auto;overflow:visible}
+  .mark-ring{fill:none;stroke:var(--ink-faint);stroke-width:2.4;stroke-dasharray:5 7;stroke-linecap:round;opacity:.7}
+  .mark-orbit{transform-origin:40px 40px;animation:orbit 2.8s linear infinite}
+  .mark-dot{fill:var(--ink-soft)}
+  .mark-loop{transition:opacity .45s ease}
+  .mark-line{opacity:0;transition:opacity .5s ease}
+  .mark-path{fill:none;stroke:var(--go);stroke-width:2.8;stroke-linecap:round;stroke-dasharray:48;stroke-dashoffset:48;transition:stroke-dashoffset .55s ease .12s}
+  .mark-arrow{fill:none;stroke:var(--go);stroke-width:2.8;stroke-linecap:round;stroke-linejoin:round;opacity:0;transition:opacity .3s ease .5s}
+  .mark-runner{fill:var(--go);opacity:0}
+  .mark.broken .mark-loop{opacity:0}
+  .mark.broken .mark-line{opacity:1}
+  .mark.broken .mark-path{stroke-dashoffset:0}
+  .mark.broken .mark-arrow{opacity:1}
+  .mark.broken .mark-runner{animation:run .85s cubic-bezier(.5,0,.2,1) .15s forwards}
+  @keyframes orbit{to{transform:rotate(360deg)}}
+  @keyframes run{0%{opacity:1;transform:translateX(0)}85%{opacity:1}100%{opacity:0;transform:translateX(34px)}}
+
+  .brand{display:flex;flex-direction:column;gap:1px}
+  .word{font-family:var(--display);font-weight:800;font-size:1.5rem;letter-spacing:-.02em;line-height:1}
+  .tag{font-size:.83rem;color:var(--ink-soft);letter-spacing:.01em}
+
+  /* ---------- progress rail ---------- */
+  .rail{display:flex;align-items:center;gap:7px;margin:0 4px 14px}
+  .pip{height:6px;border-radius:99px;background:var(--line);flex:1;overflow:hidden;position:relative}
+  .pip > i{position:absolute;inset:0;background:var(--ink);transform:scaleX(0);transform-origin:left;border-radius:99px;transition:transform .45s ease}
+  .pip.on > i{transform:scaleX(1)}
+  .pip.go > i{background:var(--go)}
+
+  /* ---------- card / stage ---------- */
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--r-card);
+    box-shadow:var(--shadow);
+    padding:26px 24px 24px;
+  }
+  .stage{animation:rise .42s cubic-bezier(.2,.7,.2,1) both}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+  .eyebrow{font-family:var(--mono);font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 14px}
+  .eyebrow b{color:var(--go);font-weight:600}
+  .q{font-family:var(--display);font-weight:600;font-size:clamp(1.45rem,5.4vw,1.95rem);line-height:1.12;letter-spacing:-.015em;margin:0 0 6px}
+  .lede{color:var(--ink-soft);margin:0 0 20px;font-size:1rem}
+  .lede.tight{margin-bottom:14px}
+
+  /* ---------- text input ---------- */
+  textarea, input[type=text]{
+    width:100%;font-family:var(--body);font-size:1.02rem;color:var(--ink);
+    background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r-ctrl);
+    padding:14px 15px;resize:none;line-height:1.45;transition:border-color .18s, background .18s;
+  }
+  textarea::placeholder, input::placeholder{color:var(--ink-faint)}
+  textarea:focus, input:focus{outline:none;border-color:var(--ink);background:#fff}
+
+  /* ---------- quick-tap questions ---------- */
+  .qset{display:flex;flex-direction:column;gap:18px;margin-bottom:6px}
+  .qblock > .qlabel{font-family:var(--body);font-weight:600;font-size:1.02rem;margin:0 0 9px}
+  .opts{display:flex;flex-wrap:wrap;gap:8px}
+  .opt{
+    font-family:var(--body);font-size:.92rem;font-weight:500;color:var(--ink);
+    background:var(--card);border:1.5px solid var(--line);border-radius:var(--r-ctrl);
+    padding:9px 13px;cursor:pointer;transition:border-color .15s, background .15s, transform .08s;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .opt:hover{border-color:var(--ink-faint)}
+  .opt:active{transform:scale(.97)}
+  .opt[aria-pressed=true]{border-color:var(--ink);background:var(--go-tint)}
+
+  /* ---------- buttons ---------- */
+  .btn{
+    font-family:var(--body);font-weight:600;font-size:1rem;cursor:pointer;
+    border-radius:var(--r-ctrl);padding:14px 20px;border:1.5px solid transparent;
+    transition:background .16s, border-color .16s, transform .08s, opacity .16s;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .btn:active{transform:translateY(1px)}
+  .btn-go{background:var(--go);color:var(--ink);width:100%;font-weight:700}
+  .btn-go:hover{background:var(--go-deep);color:#fff}
+  .btn-go:disabled{background:var(--paper-2);color:var(--ink-faint);cursor:not-allowed}
+  .btn-ghost{background:transparent;color:var(--ink-soft);border-color:var(--line)}
+  .btn-ghost:hover{border-color:var(--ink-faint);color:var(--ink)}
+  .btn-ink{background:var(--ink);color:#fff;width:100%}
+  .btn-ink:hover{background:#000}
+  .row{display:flex;gap:10px;margin-top:20px}
+  .row .btn{flex:1}
+  .mt{margin-top:20px}
+
+  /* ---------- move screen bits ---------- */
+  .diag{background:var(--paper);border-radius:var(--r-ctrl);padding:14px 16px;color:var(--ink-soft);font-size:.97rem;margin:0 0 18px}
+  .diag b{color:var(--ink);font-weight:600}
+  .steps3{list-style:none;margin:0 0 18px;padding:0;display:flex;flex-direction:column;gap:12px}
+  .steps3 li{display:flex;gap:12px;align-items:flex-start;font-size:.98rem}
+  .steps3 .n{font-family:var(--mono);font-size:.74rem;color:var(--go);font-weight:600;flex:0 0 auto;padding-top:3px;min-width:20px}
+  .field-label{font-weight:600;font-size:.97rem;margin:0 0 8px}
+  .hint{font-size:.86rem;color:var(--ink-faint);margin:8px 0 0}
+
+  /* ---------- timer / coin ---------- */
+  .timer{font-family:var(--mono);font-size:2.6rem;font-weight:500;letter-spacing:.02em;text-align:center;margin:6px 0 2px;font-variant-numeric:tabular-nums}
+  .timer.warn{color:var(--go)}
+  .timer-cap{text-align:center;font-size:.82rem;color:var(--ink-faint);margin:0 0 16px}
+  .coin{font-family:var(--display);font-weight:700;text-align:center;font-size:1.3rem;min-height:26px;margin:4px 0 2px}
+  .coin.spin{animation:coinflip .6s ease-in-out}
+  @keyframes coinflip{0%{transform:rotateX(0)}100%{transform:rotateX(720deg)}}
+
+  /* ---------- done ---------- */
+  .done-h{font-family:var(--display);font-weight:700;font-size:clamp(1.7rem,6vw,2.3rem);letter-spacing:-.02em;margin:2px 0 16px;display:flex;align-items:center;gap:10px}
+  .recap{border:1px solid var(--line);border-radius:var(--r-ctrl);overflow:hidden;margin:0 0 18px}
+  .recap-row{padding:13px 15px}
+  .recap-row + .recap-row{border-top:1px solid var(--line)}
+  .recap-k{font-family:var(--mono);font-size:.66rem;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 4px}
+  .recap-v{font-size:1rem;color:var(--ink);font-weight:500}
+  .recap-v.act{color:var(--go-deep);font-weight:600}
+  .streak{font-family:var(--mono);font-size:.78rem;color:var(--ink-soft);text-align:center;margin:14px 0 0}
+  .streak b{color:var(--ink)}
+
+  .foot{text-align:center;font-size:.76rem;color:var(--ink-faint);margin:18px 4px 0}
+
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+  @media (max-width:420px){
+    .card{padding:22px 18px 20px}
+    .word{font-size:1.35rem}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important}
+    .mark-orbit{animation:none}
+  }
+</style>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <svg class="mark" id="mark" viewBox="0 0 80 80" aria-hidden="true">
+        <g class="mark-loop">
+          <circle class="mark-ring" cx="40" cy="40" r="22"/>
+          <g class="mark-orbit"><circle class="mark-dot" cx="40" cy="18" r="4.6"/></g>
+        </g>
+        <g class="mark-line">
+          <line class="mark-path" x1="15" y1="40" x2="57" y2="40"/>
+          <path class="mark-arrow" d="M51 33 L65 40 L51 47"/>
+          <circle class="mark-runner" cx="17" cy="40" r="4.6"/>
+        </g>
+      </svg>
+      <div class="brand">
+        <div class="word">Crux</div>
+        <div class="tag">Break the loop. Make the call.</div>
+      </div>
+    </header>
+
+    <div class="rail" id="rail" aria-hidden="true">
+      <span class="pip"><i></i></span>
+      <span class="pip"><i></i></span>
+      <span class="pip"><i></i></span>
+      <span class="pip"><i></i></span>
+    </div>
+
+    <section class="card"><div id="stage" class="stage" aria-live="polite"></div></section>
+
+    <p class="foot">Crux is a nudge toward action, not therapy.</p>
+  </main>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---- safe persistence (degrades to memory) ----
+  var mem = {};
+  var store = {
+    get:function(k){ try{ var v=localStorage.getItem(k); return v===null?mem[k]:v; }catch(e){ return mem[k]; } },
+    set:function(k,v){ try{ localStorage.setItem(k,v); }catch(e){ mem[k]=v; } }
+  };
+
+  var S = {
+    step:1, decision:"",
+    undo:null, matter:null, options:null, stuck:null,
+    move:null, moveInput:"", action:"",
+    streak: parseInt(store.get("crux_streak")||"0",10)||0
+  };
+
+  var stage = document.getElementById("stage");
+  var mark  = document.getElementById("mark");
+  var pips  = document.querySelectorAll("#rail .pip");
+
+  // ---------- phrase helpers ----------
+  var undoPhrase   = {easy:"easily", effort:"with some effort", permanent:"not at all"};
+  var matterPhrase = {low:"barely", med:"somewhat", high:"a lot"};
+  var optionsWord  = {two:"Two", few:"A few", lots:"Several"};
+  var stuckClause  = {
+    fear:"You're afraid of the wrong call",
+    many:"You've got too many good options",
+    info:"You feel a fact is missing",
+    commit:"You can't pull the trigger"
+  };
+
+  function esc(s){ return (s||"").replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+
+  // ---------- routing engine ----------
+  function decideMove(){
+    var u=S.undo, m=S.matter, o=S.options, k=S.stuck;
+    if(u==="easy" && m!=="high")                          return "twoway";
+    if(m==="high" && (u==="permanent"||u==="effort"))     return "highstakes";
+    if(k==="info")                                        return "onefact";
+    if(o==="lots")                                        return "satisfice";
+    if(k==="fear"||k==="commit")                          return "fear";
+    return "default";
+  }
+
+  // ---------- progress rail ----------
+  function paintRail(){
+    pips.forEach(function(p,i){
+      p.classList.toggle("on", i < S.step);
+      p.classList.toggle("go", i===3 && S.step>4);
+    });
+  }
+
+  // ---------- render dispatcher ----------
+  function render(){
+    paintRail();
+    var html = "";
+    if(S.step===1) html = stepName();
+    else if(S.step===2) html = stepClassify();
+    else if(S.step===3) html = stepMove();
+    else if(S.step===4) html = stepCommit();
+    else html = stepDone();
+    stage.classList.remove("stage"); void stage.offsetWidth; stage.classList.add("stage");
+    stage.innerHTML = html;
+    wire();
+    var f = stage.querySelector("textarea,input[type=text]");
+    if(f && S.step!==2){ f.focus({preventScroll:true}); }
+  }
+
+  // ---------- step 1: name it ----------
+  function stepName(){
+    return ''+
+    '<p class="eyebrow">Step 01 <b>/</b> Name it</p>'+
+    '<h1 class="q">What decision has you stuck?</h1>'+
+    '<p class="lede">One sentence. The thing you keep circling.</p>'+
+    '<textarea id="decision" rows="3" placeholder="e.g. which job offer to take · what to name the product · whether to move cities">'+esc(S.decision)+'</textarea>'+
+    '<button class="btn btn-go mt" id="next1" '+(S.decision.trim()?'':'disabled')+'>Size it up</button>';
+  }
+
+  // ---------- step 2: classify ----------
+  function classBlock(key,label,opts){
+    var html='<div class="qblock"><p class="qlabel">'+label+'</p><div class="opts" data-key="'+key+'">';
+    opts.forEach(function(o){
+      var on = S[key]===o.v;
+      html+='<button class="opt" type="button" data-v="'+o.v+'" aria-pressed="'+(on?'true':'false')+'">'+o.t+'</button>';
+    });
+    return html+'</div></div>';
+  }
+  function stepClassify(){
+    var ready = S.undo&&S.matter&&S.options&&S.stuck;
+    return ''+
+    '<p class="eyebrow">Step 02 <b>/</b> Size it up</p>'+
+    '<h1 class="q">Four taps. First instinct.</h1>'+
+    '<p class="lede tight">Don\u2019t deliberate over these \u2014 that\u2019s the whole problem.</p>'+
+    '<div class="qset">'+
+      classBlock("undo","Can you undo it?",[{v:"easy",t:"Easily"},{v:"effort",t:"With effort"},{v:"permanent",t:"It\u2019s permanent"}])+
+      classBlock("matter","Will it matter in a year?",[{v:"low",t:"Barely"},{v:"med",t:"Somewhat"},{v:"high",t:"A lot"}])+
+      classBlock("options","How many real options?",[{v:"two",t:"Two"},{v:"few",t:"A few"},{v:"lots",t:"Lots"}])+
+      classBlock("stuck","What\u2019s keeping you stuck?",[{v:"fear",t:"Fear of the wrong call"},{v:"many",t:"Too many good options"},{v:"info",t:"A missing fact"},{v:"commit",t:"Can\u2019t commit"}])+
+    '</div>'+
+    '<div class="row">'+
+      '<button class="btn btn-ghost" id="back2" style="flex:0 0 auto">Back</button>'+
+      '<button class="btn btn-go" id="next2" '+(ready?'':'disabled')+'>See the move</button>'+
+    '</div>';
+  }
+
+  // ---------- step 3: the move ----------
+  function moveContent(){
+    var m = S.move, d = S.decision;
+    var diag, body, field=null, fieldLabel="", placeholder="", tool="";
+
+    if(m==="twoway"){
+      diag = 'You can undo this <b>'+undoPhrase[S.undo]+'</b>, and in a year it\u2019ll matter <b>'+matterPhrase[S.matter]+'</b>. The only real cost here is the time the loop is eating.';
+      body = '<p class="lede tight">This is a two-way door. Walk through it. If it\u2019s wrong you\u2019ll know fast and reverse it \u2014 cheaper than another hour of weighing.</p>';
+      tool = ''+
+        '<div class="timer" id="t60">1:00</div>'+
+        '<p class="timer-cap">Decide before this hits zero.</p>'+
+        (S.options!=="lots"
+          ? '<button class="btn btn-ghost" id="flip" style="width:100%">Flip for it</button>'+
+            '<div class="coin" id="coin"></div>'+
+            '<p class="hint" id="coinhint" style="text-align:center"></p>'
+          : '');
+    }
+    else if(m==="highstakes"){
+      diag = 'This is <b>'+matterPhrase[S.matter]+' big</b> and you can undo it <b>'+undoPhrase[S.undo]+'</b>. It earns real thought \u2014 so the goal isn\u2019t speed, it\u2019s to stop circling.';
+      body = '<ul class="steps3">'+
+        '<li><span class="n">01</span><span><b>Regret test.</b> In ten years, which stings more \u2014 having done it, or never having tried?</span></li>'+
+        '<li><span class="n">02</span><span><b>Disqualifier.</b> What would make this <i>clearly</i> the wrong call? Is that actually true right now?</span></li>'+
+        '<li><span class="n">03</span><span><b>Smallest reversible step.</b> What tiny move buys real information without betting the whole thing?</span></li>'+
+      '</ul>';
+      field=true; fieldLabel="Your smallest reversible step"; placeholder="e.g. talk to one person who\u2019s done it · run a one-week trial";
+    }
+    else if(m==="onefact"){
+      diag = 'You feel a fact is missing. Usually it\u2019s <b>one specific thing</b> \u2014 or it\u2019s nothing, and you\u2019re using \u201cresearch\u201d as a place to hide.';
+      body = '<p class="lede tight">Name the single fact that would actually change your decision. If you can\u2019t \u2014 you already have enough. Decide.</p>';
+      field=true; fieldLabel="The one fact that would change your mind"; placeholder="e.g. the real salary band · whether the lease allows pets";
+    }
+    else if(m==="satisfice"){
+      diag = '<b>'+optionsWord[S.options]+'</b> options on the table and you\u2019re hunting for the best one. \u201cBest\u201d has no finish line \u2014 that\u2019s why you\u2019re still here.';
+      body = '<p class="lede tight">Switch from <i>best</i> to <i>good enough</i>. Set one non-negotiable. The first option that clears it wins. Close the rest unseen.</p>';
+      field=true; fieldLabel="Your one must-have criterion"; placeholder="e.g. under $40 · ships by Friday · within 20 minutes of work";
+    }
+    else if(m==="fear"){
+      diag = stuckClause[S.stuck]+'. More analysis won\u2019t touch that \u2014 it\u2019s the wrong tool for fear.';
+      body = '<ul class="steps3">'+
+        '<li><span class="n">01</span><span><b>Advise a friend.</b> If your closest friend were in this exact spot, what would you tell them \u2014 no hedging?</span></li>'+
+        '<li><span class="n">02</span><span><b>The fearless test.</b> What would you pick if you knew you couldn\u2019t fail?</span></li>'+
+        '<li><span class="n">03</span><span><b>Not choosing is choosing.</b> Stalling lets the situation decide for you. That\u2019s rarely the choice you\u2019d make on purpose.</span></li>'+
+      '</ul>';
+      field=true; fieldLabel="What you\u2019d tell that friend"; placeholder="Say it plainly, the way you\u2019d say it to them";
+    }
+    else { // default
+      diag = 'A real call with no built-in deadline. So build the forcing function yourself.';
+      body = '<p class="lede tight">Pick the option you lean toward now as your <b>default</b>. Set a real deadline. If it arrives and you\u2019ve found no concrete reason to override, the default happens automatically \u2014 you only act to change course.</p>';
+      field=true; fieldLabel="Your default + deadline"; placeholder="e.g. go with Option A unless I learn X by Friday";
+    }
+
+    var fieldHtml = field
+      ? '<p class="field-label">'+fieldLabel+'</p>'+
+        '<textarea id="moveinput" rows="2" placeholder="'+placeholder+'">'+esc(S.moveInput)+'</textarea>'
+      : '';
+
+    return {diag:diag, body:body, tool:tool, field:fieldHtml};
+  }
+
+  var moveTitle = {
+    twoway:"This is a two-way door.",
+    highstakes:"Big and hard to undo.\nSlow is fine \u2014 spinning isn\u2019t.",
+    onefact:"Name the one fact.",
+    satisfice:"Stop maximizing. Satisfice.",
+    fear:"It\u2019s not the data. It\u2019s the fear.",
+    default:"Set a deadline and a default."
+  };
+
+  function stepMove(){
+    S.move = decideMove();
+    var c = moveContent();
+    var title = esc(moveTitle[S.move]).replace(/\n/g,"<br>");
+    return ''+
+    '<p class="eyebrow">Step 03 <b>/</b> The move</p>'+
+    '<h1 class="q">'+title+'</h1>'+
+    '<div class="diag">'+c.diag+'</div>'+
+    c.body + c.tool + c.field +
+    '<div class="row">'+
+      '<button class="btn btn-ghost" id="back3" style="flex:0 0 auto">Back</button>'+
+      '<button class="btn btn-go" id="next3">This is my move</button>'+
+    '</div>';
+  }
+
+  // ---------- commit prefill ----------
+  function prefillAction(){
+    var v = S.moveInput.trim();
+    switch(S.move){
+      case "twoway":   return "Make the call now \u2014 then say it out loud to one person.";
+      case "highstakes": return v ? ("Today: "+v) : "Do the smallest reversible step you named \u2014 today, not \u201csoon.\u201d";
+      case "onefact":  return v ? ("Get this one fact by end of day, then decide: "+v) : "You couldn\u2019t name a missing fact \u2014 so decide now.";
+      case "satisfice":return v ? ("Pick the first option that meets: \u201c"+v+"\u201d \u2014 then close the rest.") : "Write your one must-have, choose the first option that meets it, close the rest.";
+      case "fear":     return v ? ("Do the first 2-minute action that this implies: "+v) : "Do the first two-minute action your advice to a friend implies.";
+      default:         return v ? ("Lock in: "+v+" \u2014 put the deadline on your calendar.") : "Put the deadline on your calendar with your default written beside it.";
+    }
+  }
+
+  // ---------- step 4: commit ----------
+  function stepCommit(){
+    if(!S.action) S.action = prefillAction();
+    return ''+
+    '<p class="eyebrow">Step 04 <b>/</b> Commit</p>'+
+    '<h1 class="q">Your next move \u2014 in 10 minutes.</h1>'+
+    '<div class="diag">Stuck on: <b>'+esc(S.decision)+'</b></div>'+
+    '<p class="field-label">The one physical action you\u2019ll take now</p>'+
+    '<textarea id="action" rows="3">'+esc(S.action)+'</textarea>'+
+    '<p class="hint">Make it small enough that there\u2019s no reason not to start.</p>'+
+    '<div class="row">'+
+      '<button class="btn btn-ghost" id="back4" style="flex:0 0 auto">Back</button>'+
+      '<button class="btn btn-go" id="lock">Lock it in</button>'+
+    '</div>';
+  }
+
+  // ---------- step 5: done ----------
+  function stepDone(){
+    return ''+
+    '<h1 class="done-h">Loop broken.</h1>'+
+    '<div class="recap">'+
+      '<div class="recap-row"><p class="recap-k">The decision</p><p class="recap-v">'+esc(S.decision)+'</p></div>'+
+      '<div class="recap-row"><p class="recap-k">Next 10 minutes</p><p class="recap-v act">'+esc(S.action)+'</p></div>'+
+    '</div>'+
+    '<button class="btn btn-ink" id="clock">Start the 10-minute clock</button>'+
+    '<div class="timer" id="t10" style="display:none">10:00</div>'+
+    '<div class="mt"><button class="btn btn-ghost" id="again" style="width:100%">Break another</button></div>'+
+    '<p class="streak">decisions broken: <b>'+S.streak+'</b></p>';
+  }
+
+  // ---------- timers ----------
+  var tick=null;
+  function countdown(el, secs, opts){
+    opts=opts||{};
+    if(tick) clearInterval(tick);
+    var left=secs;
+    function paint(){
+      var mm=Math.floor(left/60), ss=left%60;
+      el.textContent = mm+":"+(ss<10?"0":"")+ss;
+      if(opts.warnAt!=null) el.classList.toggle("warn", left<=opts.warnAt);
+    }
+    paint();
+    tick=setInterval(function(){
+      left--;
+      if(left<0){ clearInterval(tick); if(opts.onEnd) opts.onEnd(); return; }
+      paint();
+    },1000);
+  }
+
+  // ---------- wiring ----------
+  function wire(){
+    // step 1
+    var dec = document.getElementById("decision");
+    if(dec){
+      dec.addEventListener("input",function(){
+        S.decision=dec.value;
+        document.getElementById("next1").disabled = !S.decision.trim();
+      });
+      dec.addEventListener("keydown",function(e){
+        if(e.key==="Enter" && (e.metaKey||e.ctrlKey) && S.decision.trim()){ go(2); }
+      });
+    }
+    bind("next1",function(){ if(S.decision.trim()) go(2); });
+
+    // step 2
+    stage.querySelectorAll(".opts").forEach(function(grp){
+      var key=grp.getAttribute("data-key");
+      grp.querySelectorAll(".opt").forEach(function(b){
+        b.addEventListener("click",function(){
+          S[key]=b.getAttribute("data-v");
+          grp.querySelectorAll(".opt").forEach(function(x){x.setAttribute("aria-pressed", x===b?"true":"false");});
+          var ready=S.undo&&S.matter&&S.options&&S.stuck;
+          var nx=document.getElementById("next2"); if(nx) nx.disabled=!ready;
+        });
+      });
+    });
+    bind("back2",function(){ go(1); });
+    bind("next2",function(){ if(S.undo&&S.matter&&S.options&&S.stuck){ S.move=null; go(3);} });
+
+    // step 3
+    var mi=document.getElementById("moveinput");
+    if(mi) mi.addEventListener("input",function(){ S.moveInput=mi.value; });
+    bind("back3",function(){ go(2); });
+    bind("next3",function(){ S.action=""; go(4); });
+
+    var t60=document.getElementById("t60");
+    if(t60) countdown(t60,60,{warnAt:10,onEnd:function(){ t60.textContent="time"; var c=document.querySelector(".timer-cap"); if(c) c.textContent="Pick the one you\u2019re leaning toward. That hesitation was the answer."; }});
+
+    var flip=document.getElementById("flip");
+    if(flip){
+      flip.addEventListener("click",function(){
+        var coin=document.getElementById("coin"), hint=document.getElementById("coinhint");
+        coin.classList.remove("spin"); void coin.offsetWidth; coin.classList.add("spin");
+        setTimeout(function(){
+          coin.textContent = Math.random()<0.5 ? "Heads" : "Tails";
+          hint.textContent = "Before you look at logic \u2014 which side were you hoping for? That\u2019s your real answer.";
+        },300);
+      });
+    }
+
+    // step 4
+    var act=document.getElementById("action");
+    if(act) act.addEventListener("input",function(){ S.action=act.value; });
+    bind("back4",function(){ go(3); });
+    bind("lock",function(){
+      if(act) S.action=act.value.trim()||S.action;
+      S.streak += 1; store.set("crux_streak", String(S.streak));
+      mark.classList.add("broken");
+      go(5);
+    });
+
+    // step 5
+    bind("clock",function(){
+      var t10=document.getElementById("t10"); var btn=document.getElementById("clock");
+      btn.style.display="none"; t10.style.display="block";
+      countdown(t10,600,{warnAt:60,onEnd:function(){ t10.textContent="go"; }});
+    });
+    bind("again",function(){
+      if(tick) clearInterval(tick);
+      mark.classList.remove("broken");
+      S.decision="";S.undo=S.matter=S.options=S.stuck=S.move=null;S.moveInput="";S.action="";
+      go(1);
+    });
+  }
+
+  function bind(id,fn){ var el=document.getElementById(id); if(el) el.addEventListener("click",fn); }
+  function go(step){ if(tick && step!==5){ clearInterval(tick); } S.step=step; render(); window.scrollTo({top:0,behavior:"smooth"}); }
+
+  render();
+})();
+</script>
+</body>
+</html>
