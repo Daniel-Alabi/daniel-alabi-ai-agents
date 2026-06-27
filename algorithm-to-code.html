@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transpose — algorithm to code</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink:        #12161D;
+    --panel:      #1A2029;
+    --panel-2:    #20272F;
+    --line:       #2C3742;
+    --line-soft:  #232C36;
+    --text:       #E7ECF2;
+    --muted:      #8B96A6;
+    --faint:      #5C6675;
+    --amber:      #F2A65A;
+    --amber-dim:  #B97c3f;
+    --good:       #6FCF97;
+    --bad:        #E2756A;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    --disp: "Space Grotesk", system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(242,166,90,0.06), transparent 60%),
+      var(--ink);
+    color: var(--text);
+    font-family: var(--disp);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    padding: 28px 22px 56px;
+  }
+
+  .wrap { max-width: 1180px; margin: 0 auto; }
+
+  /* ---- Masthead ---- */
+  header.top {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 18px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--line-soft);
+    padding-bottom: 18px; margin-bottom: 26px;
+  }
+  .brand { display: flex; align-items: baseline; gap: 14px; }
+  .logo {
+    font-weight: 700; font-size: 26px; letter-spacing: -0.02em;
+  }
+  .logo b { color: var(--amber); font-weight: 700; }
+  .tagline {
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+    letter-spacing: 0.01em;
+  }
+  .modeline {
+    font-family: var(--mono); font-size: 11px; color: var(--faint);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); display:inline-block; }
+  .modeline.live .dot { background: var(--good); box-shadow: 0 0 8px rgba(111,207,151,0.7); }
+
+  /* ---- Stage ---- */
+  .stage {
+    display: grid;
+    grid-template-columns: 1fr 58px 1fr;
+    gap: 0;
+    align-items: stretch;
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px 18px 20px;
+    min-height: 440px;
+    display: flex; flex-direction: column;
+  }
+  .panel-label {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--faint);
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  /* ---- Seam / transform node ---- */
+  .seam { position: relative; }
+  .seam::before {
+    content: ""; position: absolute; left: 50%; top: 18px; bottom: 18px;
+    width: 1px; background: linear-gradient(var(--line), transparent 8%, transparent 92%, var(--line));
+    transform: translateX(-50%);
+  }
+  .node {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--panel-2); border: 1px solid var(--line);
+    display: grid; place-items: center; color: var(--muted);
+    z-index: 2; transition: color .2s, border-color .2s, box-shadow .2s;
+  }
+  .node svg { width: 17px; height: 17px; }
+  .stage.busy .node {
+    color: var(--amber); border-color: var(--amber-dim);
+    box-shadow: 0 0 0 0 rgba(242,166,90,0.5);
+    animation: pulse 1.1s ease-out infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(242,166,90,0.45); }
+    100% { box-shadow: 0 0 0 16px rgba(242,166,90,0); }
+  }
+
+  /* ---- Mode tabs ---- */
+  .tabs { display: flex; gap: 4px; background: var(--panel-2); border:1px solid var(--line-soft);
+    border-radius: 9px; padding: 4px; margin-bottom: 14px; }
+  .tab {
+    flex: 1; border: 0; background: transparent; color: var(--muted);
+    font-family: var(--disp); font-weight: 500; font-size: 13px;
+    padding: 8px 6px; border-radius: 6px; cursor: pointer; transition: all .15s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab[aria-selected="true"] { background: var(--ink); color: var(--amber); }
+
+  /* ---- Inputs ---- */
+  textarea {
+    flex: 1; width: 100%; resize: none;
+    background: var(--ink); border: 1px solid var(--line-soft); border-radius: 10px;
+    color: var(--text); font-family: var(--mono); font-size: 13.5px; line-height: 1.6;
+    padding: 14px; outline: none; transition: border-color .15s;
+  }
+  textarea:focus { border-color: var(--amber-dim); }
+  textarea::placeholder { color: var(--faint); }
+
+  /* catalog grid */
+  .catalog { flex: 1; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    padding: 2px; align-content: start; }
+  .algo {
+    text-align: left; background: var(--ink); border: 1px solid var(--line-soft);
+    border-radius: 9px; padding: 11px 12px; cursor: pointer; color: var(--text);
+    font-family: var(--disp); transition: all .14s;
+  }
+  .algo:hover { border-color: var(--line); transform: translateY(-1px); }
+  .algo[aria-pressed="true"] { border-color: var(--amber); background: rgba(242,166,90,0.07); }
+  .algo .nm { font-weight: 600; font-size: 13.5px; }
+  .algo .cat { font-family: var(--mono); font-size: 10px; color: var(--faint);
+    text-transform: uppercase; letter-spacing: 0.08em; margin-top: 3px; }
+
+  /* ---- Controls row ---- */
+  .controls { display: flex; gap: 10px; margin-top: 14px; align-items: center; }
+  .lang-field { position: relative; flex: 0 0 auto; }
+  .lang-field label { position:absolute; top:-7px; left:10px; font-family:var(--mono);
+    font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint);
+    background: var(--panel); padding: 0 4px; }
+  select {
+    appearance: none; background: var(--ink); color: var(--text);
+    border: 1px solid var(--line-soft); border-radius: 9px;
+    font-family: var(--mono); font-size: 13px; padding: 11px 34px 11px 12px;
+    cursor: pointer; outline: none;
+  }
+  select:focus { border-color: var(--amber-dim); }
+  .lang-field::after {
+    content: "▾"; position: absolute; right: 12px; top: 50%; transform: translateY(-45%);
+    color: var(--muted); pointer-events: none; font-size: 11px;
+  }
+  .go {
+    flex: 1; border: 0; cursor: pointer;
+    background: var(--amber); color: #1b1206;
+    font-family: var(--disp); font-weight: 700; font-size: 14px; letter-spacing: 0.01em;
+    padding: 12px; border-radius: 9px; transition: filter .15s, opacity .15s;
+  }
+  .go:hover { filter: brightness(1.06); }
+  .go:disabled { opacity: 0.55; cursor: default; }
+
+  /* ---- Output ---- */
+  .out-meta { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; }
+  .src-badge { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+  .src-badge .d { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
+  .src-badge.claude .d { background: var(--amber); box-shadow: 0 0 7px rgba(242,166,90,0.7); }
+  .src-badge.offline .d { background: var(--good); }
+
+  .out-actions { display: flex; gap: 6px; }
+  .icon-btn.cont {
+    color: var(--amber); border-color: var(--amber-dim); background: rgba(242,166,90,0.08);
+  }
+  .icon-btn.cont:hover:not(:disabled) { color: var(--amber); filter: brightness(1.12); }
+  .icon-btn {
+    border: 1px solid var(--line-soft); background: var(--panel-2); color: var(--muted);
+    font-family: var(--mono); font-size: 11px; padding: 5px 10px; border-radius: 7px; cursor: pointer;
+    transition: all .14s;
+  }
+  .icon-btn:hover:not(:disabled) { color: var(--text); border-color: var(--line); }
+  .icon-btn:disabled { opacity: 0.4; cursor: default; }
+
+  .code-wrap {
+    flex: 1; background: var(--ink); border: 1px solid var(--line-soft);
+    border-radius: 10px; overflow: auto; min-height: 0;
+  }
+  pre {
+    margin: 0; padding: 16px; font-family: var(--mono); font-size: 13px; line-height: 1.65;
+    white-space: pre; tab-size: 4;
+  }
+  pre.placeholder { color: var(--faint); white-space: pre-wrap; }
+  pre.notice { color: var(--muted); white-space: pre-wrap; }
+  pre.notice b { color: var(--text); font-weight: 600; }
+
+  .c-com { color: #5f6b78; font-style: italic; }
+  .c-str { color: #cce29a; }
+  .c-num { color: #e0a06a; }
+  .c-kw  { color: #79b8e8; }
+
+  footer.fine {
+    margin-top: 22px; font-family: var(--mono); font-size: 11px; color: var(--faint);
+    text-align: center; line-height: 1.7;
+  }
+  footer.fine b { color: var(--muted); font-weight: 500; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 20px);
+    background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
+    font-family: var(--mono); font-size: 12px; padding: 9px 16px; border-radius: 9px;
+    opacity: 0; pointer-events: none; transition: all .22s; z-index: 50;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (max-width: 820px) {
+    body { padding: 20px 14px 44px; }
+    .stage { grid-template-columns: 1fr; }
+    .seam { height: 50px; }
+    .seam::before { left: 18px; right: 18px; top: 50%; bottom: auto; width: auto; height: 1px;
+      background: linear-gradient(90deg, var(--line), transparent 10%, transparent 90%, var(--line)); }
+    .node { top: 50%; }
+    .node svg { transform: rotate(90deg); }
+    .panel { min-height: 340px; }
+    .catalog { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <div class="logo">Trans<b>pose</b></div>
+      <div class="tagline">algorithm &rarr; code</div>
+    </div>
+    <div class="modeline" id="modeline"><span class="dot"></span><span id="modeText">checking engine…</span></div>
+  </header>
+
+  <div class="stage" id="stage">
+
+    <!-- SOURCE -->
+    <section class="panel source">
+      <div class="panel-label"><span>Source</span><span id="charcount"></span></div>
+
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" data-mode="describe" aria-selected="true">Describe</button>
+        <button class="tab" role="tab" data-mode="pseudo" aria-selected="false">Pseudocode</button>
+        <button class="tab" role="tab" data-mode="catalog" aria-selected="false">Catalog</button>
+      </div>
+
+      <textarea id="ta-describe" placeholder="Describe the algorithm in plain English.&#10;&#10;e.g. Find the shortest path from a start node to&#10;every other node in a weighted graph."></textarea>
+
+      <textarea id="ta-pseudo" placeholder="Paste pseudocode or numbered steps.&#10;&#10;e.g.&#10;1. set lo = 0, hi = n - 1&#10;2. while lo <= hi: pick the middle&#10;3. if match return it, else halve the range" style="display:none"></textarea>
+
+      <div class="catalog" id="catalog" style="display:none"></div>
+
+      <div class="controls">
+        <div class="lang-field">
+          <label for="lang">Language</label>
+          <select id="lang">
+            <option>Python</option>
+            <option>JavaScript</option>
+            <option>TypeScript</option>
+            <option>Java</option>
+            <option>C++</option>
+            <option>Go</option>
+            <option>Rust</option>
+            <option>Ruby</option>
+            <option>C#</option>
+          </select>
+        </div>
+        <button class="go" id="go">Generate code</button>
+      </div>
+    </section>
+
+    <!-- SEAM -->
+    <div class="seam">
+      <div class="node" id="node" title="transform">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </div>
+    </div>
+
+    <!-- OUTPUT -->
+    <section class="panel output">
+      <div class="panel-label">
+        <div class="out-meta">
+          <span>Output</span>
+          <span class="src-badge" id="srcBadge" style="display:none"><span class="d"></span><span id="srcText"></span></span>
+        </div>
+        <div class="out-actions">
+          <button class="icon-btn cont" id="contBtn" style="display:none">Continue ↓</button>
+          <button class="icon-btn" id="copyBtn" disabled>Copy</button>
+          <button class="icon-btn" id="dlBtn" disabled>Download</button>
+        </div>
+      </div>
+      <div class="code-wrap">
+        <pre class="placeholder" id="output">Generated code lands here.
+
+Pick an input mode on the left, choose a target
+language, and hit Generate. When Claude is reachable
+it writes from your description; offline, the built-in
+library covers the classic algorithms.</pre>
+      </div>
+    </section>
+
+  </div>
+
+  <footer class="fine">
+    Nothing is executed. Code is generated in your browser via <b>Claude</b>, or from the local <b>library</b> when offline.
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================ Catalog ============================ */
+/* Each entry ships Python + JavaScript so the offline fallback is real.
+   Other languages route through Claude; offline they fall back to Python. */
+const CATALOG = {
+  binary_search: {
+    name: "Binary search", cat: "search",
+    desc: "Find a target's index in a sorted array by halving the range.",
+    py:
+"def binary_search(arr, target):\n" +
+"    lo, hi = 0, len(arr) - 1\n" +
+"    while lo <= hi:\n" +
+"        mid = (lo + hi) // 2\n" +
+"        if arr[mid] == target:\n" +
+"            return mid\n" +
+"        if arr[mid] < target:\n" +
+"            lo = mid + 1\n" +
+"        else:\n" +
+"            hi = mid - 1\n" +
+"    return -1\n\n" +
+"# arr must be sorted ascending\n" +
+"# binary_search([1, 3, 5, 7, 9], 7) -> 3",
+    js:
+"function binarySearch(arr, target) {\n" +
+"  let lo = 0, hi = arr.length - 1;\n" +
+"  while (lo <= hi) {\n" +
+"    const mid = (lo + hi) >> 1;\n" +
+"    if (arr[mid] === target) return mid;\n" +
+"    if (arr[mid] < target) lo = mid + 1;\n" +
+"    else hi = mid - 1;\n" +
+"  }\n" +
+"  return -1;\n" +
+"}\n\n" +
+"// arr must be sorted ascending\n" +
+"// binarySearch([1, 3, 5, 7, 9], 7) -> 3"
+  },
+  linear_search: {
+    name: "Linear search", cat: "search",
+    desc: "Scan an array left to right until the target is found.",
+    py:
+"def linear_search(arr, target):\n" +
+"    for i, value in enumerate(arr):\n" +
+"        if value == target:\n" +
+"            return i\n" +
+"    return -1",
+    js:
+"function linearSearch(arr, target) {\n" +
+"  for (let i = 0; i < arr.length; i++) {\n" +
+"    if (arr[i] === target) return i;\n" +
+"  }\n" +
+"  return -1;\n" +
+"}"
+  },
+  bubble_sort: {
+    name: "Bubble sort", cat: "sorting",
+    desc: "Repeatedly swap adjacent out-of-order pairs until sorted.",
+    py:
+"def bubble_sort(arr):\n" +
+"    a = list(arr)\n" +
+"    n = len(a)\n" +
+"    for i in range(n):\n" +
+"        swapped = False\n" +
+"        for j in range(0, n - i - 1):\n" +
+"            if a[j] > a[j + 1]:\n" +
+"                a[j], a[j + 1] = a[j + 1], a[j]\n" +
+"                swapped = True\n" +
+"        if not swapped:\n" +
+"            break\n" +
+"    return a",
+    js:
+"function bubbleSort(arr) {\n" +
+"  const a = [...arr];\n" +
+"  for (let i = 0; i < a.length; i++) {\n" +
+"    let swapped = false;\n" +
+"    for (let j = 0; j < a.length - i - 1; j++) {\n" +
+"      if (a[j] > a[j + 1]) {\n" +
+"        [a[j], a[j + 1]] = [a[j + 1], a[j]];\n" +
+"        swapped = true;\n" +
+"      }\n" +
+"    }\n" +
+"    if (!swapped) break;\n" +
+"  }\n" +
+"  return a;\n" +
+"}"
+  },
+  quick_sort: {
+    name: "Quick sort", cat: "sorting",
+    desc: "Partition around a pivot, then sort each side recursively.",
+    py:
+"def quick_sort(arr):\n" +
+"    if len(arr) <= 1:\n" +
+"        return list(arr)\n" +
+"    pivot = arr[len(arr) // 2]\n" +
+"    less = [x for x in arr if x < pivot]\n" +
+"    equal = [x for x in arr if x == pivot]\n" +
+"    greater = [x for x in arr if x > pivot]\n" +
+"    return quick_sort(less) + equal + quick_sort(greater)",
+    js:
+"function quickSort(arr) {\n" +
+"  if (arr.length <= 1) return [...arr];\n" +
+"  const pivot = arr[arr.length >> 1];\n" +
+"  const less = arr.filter(x => x < pivot);\n" +
+"  const equal = arr.filter(x => x === pivot);\n" +
+"  const greater = arr.filter(x => x > pivot);\n" +
+"  return [...quickSort(less), ...equal, ...quickSort(greater)];\n" +
+"}"
+  },
+  merge_sort: {
+    name: "Merge sort", cat: "sorting",
+    desc: "Split in half, sort each half, then merge them in order.",
+    py:
+"def merge_sort(arr):\n" +
+"    if len(arr) <= 1:\n" +
+"        return list(arr)\n" +
+"    mid = len(arr) // 2\n" +
+"    left = merge_sort(arr[:mid])\n" +
+"    right = merge_sort(arr[mid:])\n" +
+"    merged, i, j = [], 0, 0\n" +
+"    while i < len(left) and j < len(right):\n" +
+"        if left[i] <= right[j]:\n" +
+"            merged.append(left[i]); i += 1\n" +
+"        else:\n" +
+"            merged.append(right[j]); j += 1\n" +
+"    merged.extend(left[i:])\n" +
+"    merged.extend(right[j:])\n" +
+"    return merged",
+    js:
+"function mergeSort(arr) {\n" +
+"  if (arr.length <= 1) return [...arr];\n" +
+"  const mid = arr.length >> 1;\n" +
+"  const left = mergeSort(arr.slice(0, mid));\n" +
+"  const right = mergeSort(arr.slice(mid));\n" +
+"  const merged = [];\n" +
+"  let i = 0, j = 0;\n" +
+"  while (i < left.length && j < right.length) {\n" +
+"    if (left[i] <= right[j]) merged.push(left[i++]);\n" +
+"    else merged.push(right[j++]);\n" +
+"  }\n" +
+"  return merged.concat(left.slice(i), right.slice(j));\n" +
+"}"
+  },
+  fibonacci: {
+    name: "Fibonacci", cat: "dynamic prog",
+    desc: "Nth Fibonacci number with memoization (O(n)).",
+    py:
+"def fibonacci(n, memo=None):\n" +
+"    if memo is None:\n" +
+"        memo = {}\n" +
+"    if n < 2:\n" +
+"        return n\n" +
+"    if n in memo:\n" +
+"        return memo[n]\n" +
+"    memo[n] = fibonacci(n - 1, memo) + fibonacci(n - 2, memo)\n" +
+"    return memo[n]",
+    js:
+"function fibonacci(n, memo = {}) {\n" +
+"  if (n < 2) return n;\n" +
+"  if (n in memo) return memo[n];\n" +
+"  memo[n] = fibonacci(n - 1, memo) + fibonacci(n - 2, memo);\n" +
+"  return memo[n];\n" +
+"}"
+  },
+  factorial: {
+    name: "Factorial", cat: "recursion",
+    desc: "Product of all positive integers up to n.",
+    py:
+"def factorial(n):\n" +
+"    if n < 0:\n" +
+"        raise ValueError(\"n must be non-negative\")\n" +
+"    result = 1\n" +
+"    for k in range(2, n + 1):\n" +
+"        result *= k\n" +
+"    return result",
+    js:
+"function factorial(n) {\n" +
+"  if (n < 0) throw new Error('n must be non-negative');\n" +
+"  let result = 1;\n" +
+"  for (let k = 2; k <= n; k++) result *= k;\n" +
+"  return result;\n" +
+"}"
+  },
+  gcd: {
+    name: "GCD (Euclid)", cat: "number theory",
+    desc: "Greatest common divisor via the Euclidean algorithm.",
+    py:
+"def gcd(a, b):\n" +
+"    while b:\n" +
+"        a, b = b, a % b\n" +
+"    return abs(a)",
+    js:
+"function gcd(a, b) {\n" +
+"  while (b) [a, b] = [b, a % b];\n" +
+"  return Math.abs(a);\n" +
+"}"
+  },
+  sieve: {
+    name: "Sieve of Eratosthenes", cat: "number theory",
+    desc: "All primes up to n by crossing out multiples.",
+    py:
+"def sieve(n):\n" +
+"    if n < 2:\n" +
+"        return []\n" +
+"    is_prime = [True] * (n + 1)\n" +
+"    is_prime[0] = is_prime[1] = False\n" +
+"    p = 2\n" +
+"    while p * p <= n:\n" +
+"        if is_prime[p]:\n" +
+"            for multiple in range(p * p, n + 1, p):\n" +
+"                is_prime[multiple] = False\n" +
+"        p += 1\n" +
+"    return [i for i, prime in enumerate(is_prime) if prime]",
+    js:
+"function sieve(n) {\n" +
+"  if (n < 2) return [];\n" +
+"  const isPrime = new Array(n + 1).fill(true);\n" +
+"  isPrime[0] = isPrime[1] = false;\n" +
+"  for (let p = 2; p * p <= n; p++) {\n" +
+"    if (isPrime[p]) {\n" +
+"      for (let m = p * p; m <= n; m += p) isPrime[m] = false;\n" +
+"    }\n" +
+"  }\n" +
+"  return isPrime.flatMap((prime, i) => prime ? [i] : []);\n" +
+"}"
+  },
+  two_sum: {
+    name: "Two sum", cat: "hashing",
+    desc: "Indices of two numbers that add to a target, in one pass.",
+    py:
+"def two_sum(nums, target):\n" +
+"    seen = {}\n" +
+"    for i, num in enumerate(nums):\n" +
+"        need = target - num\n" +
+"        if need in seen:\n" +
+"            return [seen[need], i]\n" +
+"        seen[num] = i\n" +
+"    return None",
+    js:
+"function twoSum(nums, target) {\n" +
+"  const seen = new Map();\n" +
+"  for (let i = 0; i < nums.length; i++) {\n" +
+"    const need = target - nums[i];\n" +
+"    if (seen.has(need)) return [seen.get(need), i];\n" +
+"    seen.set(nums[i], i);\n" +
+"  }\n" +
+"  return null;\n" +
+"}"
+  },
+  bfs: {
+    name: "Breadth-first search", cat: "graphs",
+    desc: "Level-order traversal of a graph from a start node.",
+    py:
+"from collections import deque\n\n" +
+"def bfs(graph, start):\n" +
+"    visited = set([start])\n" +
+"    queue = deque([start])\n" +
+"    order = []\n" +
+"    while queue:\n" +
+"        node = queue.popleft()\n" +
+"        order.append(node)\n" +
+"        for neighbor in graph.get(node, []):\n" +
+"            if neighbor not in visited:\n" +
+"                visited.add(neighbor)\n" +
+"                queue.append(neighbor)\n" +
+"    return order",
+    js:
+"function bfs(graph, start) {\n" +
+"  const visited = new Set([start]);\n" +
+"  const queue = [start];\n" +
+"  const order = [];\n" +
+"  while (queue.length) {\n" +
+"    const node = queue.shift();\n" +
+"    order.push(node);\n" +
+"    for (const neighbor of graph[node] || []) {\n" +
+"      if (!visited.has(neighbor)) {\n" +
+"        visited.add(neighbor);\n" +
+"        queue.push(neighbor);\n" +
+"      }\n" +
+"    }\n" +
+"  }\n" +
+"  return order;\n" +
+"}"
+  },
+  dfs: {
+    name: "Depth-first search", cat: "graphs",
+    desc: "Traverse as deep as possible before backtracking.",
+    py:
+"def dfs(graph, start, visited=None):\n" +
+"    if visited is None:\n" +
+"        visited = set()\n" +
+"    visited.add(start)\n" +
+"    order = [start]\n" +
+"    for neighbor in graph.get(start, []):\n" +
+"        if neighbor not in visited:\n" +
+"            order.extend(dfs(graph, neighbor, visited))\n" +
+"    return order",
+    js:
+"function dfs(graph, start, visited = new Set()) {\n" +
+"  visited.add(start);\n" +
+"  let order = [start];\n" +
+"  for (const neighbor of graph[start] || []) {\n" +
+"    if (!visited.has(neighbor)) {\n" +
+"      order = order.concat(dfs(graph, neighbor, visited));\n" +
+"    }\n" +
+"  }\n" +
+"  return order;\n" +
+"}"
+  },
+  dijkstra: {
+    name: "Dijkstra", cat: "graphs",
+    desc: "Shortest path from a source over non-negative weights.",
+    py:
+"import heapq\n\n" +
+"def dijkstra(graph, source):\n" +
+"    dist = {source: 0}\n" +
+"    pq = [(0, source)]\n" +
+"    while pq:\n" +
+"        d, node = heapq.heappop(pq)\n" +
+"        if d > dist.get(node, float('inf')):\n" +
+"            continue\n" +
+"        for neighbor, weight in graph.get(node, []):\n" +
+"            nd = d + weight\n" +
+"            if nd < dist.get(neighbor, float('inf')):\n" +
+"                dist[neighbor] = nd\n" +
+"                heapq.heappush(pq, (nd, neighbor))\n" +
+"    return dist\n\n" +
+"# graph: { node: [(neighbor, weight), ...] }",
+    js:
+"function dijkstra(graph, source) {\n" +
+"  const dist = { [source]: 0 };\n" +
+"  const pq = [[0, source]];\n" +
+"  while (pq.length) {\n" +
+"    pq.sort((a, b) => a[0] - b[0]);\n" +
+"    const [d, node] = pq.shift();\n" +
+"    if (d > (dist[node] ?? Infinity)) continue;\n" +
+"    for (const [neighbor, weight] of graph[node] || []) {\n" +
+"      const nd = d + weight;\n" +
+"      if (nd < (dist[neighbor] ?? Infinity)) {\n" +
+"        dist[neighbor] = nd;\n" +
+"        pq.push([nd, neighbor]);\n" +
+"      }\n" +
+"    }\n" +
+"  }\n" +
+"  return dist;\n" +
+"}\n\n" +
+"// graph: { node: [[neighbor, weight], ...] }"
+  }
+};
+
+/* Keyword detection so Describe / Pseudocode work offline for known algorithms. */
+const DETECT = [
+  [/binary\s*search/i, "binary_search"],
+  [/linear\s*search|sequential\s*search/i, "linear_search"],
+  [/bubble\s*sort/i, "bubble_sort"],
+  [/quick\s*sort|quicksort|partition.*pivot|pivot.*partition/i, "quick_sort"],
+  [/merge\s*sort/i, "merge_sort"],
+  [/fibonacci|\bfib\b/i, "fibonacci"],
+  [/factorial/i, "factorial"],
+  [/\bgcd\b|greatest common divisor|euclid/i, "gcd"],
+  [/sieve|eratosthenes|all primes|list of primes/i, "sieve"],
+  [/two[\s-]*sum/i, "two_sum"],
+  [/breadth[\s-]*first|\bbfs\b|level[\s-]*order/i, "bfs"],
+  [/depth[\s-]*first|\bdfs\b/i, "dfs"],
+  [/dijkstra|shortest path/i, "dijkstra"]
+];
+
+/* ============================ Highlighter (offline, generic) ============================ */
+const KEYWORDS = ["def","return","if","elif","else","for","while","in","range","function","const","let","var",
+"class","public","private","protected","static","void","int","long","float","double","string","char","bool",
+"boolean","new","this","self","import","from","package","func","struct","type","interface","nil","null","None",
+"True","False","true","false","and","or","not","print","println","printf","cout","endl","std","vector","len",
+"append","push","break","continue","do","switch","case","default","try","catch","except","finally","throw",
+"throws","raise","yield","lambda","async","await","typedef","using","namespace","extends","implements","final",
+"abstract","enum","mut","fn","match","is","as","with","of","map","set","Map","Set","Math","Infinity"];
+
+function escapeHtml(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+function highlight(code){
+  const re = new RegExp(
+    "(\\/\\*[\\s\\S]*?\\*\\/|\\/\\/[^\\n]*|#[^\\n]*)" +
+    "|(`(?:\\\\.|[^`\\\\])*`|\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*')" +
+    "|\\b(\\d+\\.?\\d*)\\b" +
+    "|\\b(" + KEYWORDS.join("|") + ")\\b", "g");
+  let out = "", last = 0, m;
+  while ((m = re.exec(code))) {
+    out += escapeHtml(code.slice(last, m.index));
+    const t = m[0];
+    const cls = m[1] ? "c-com" : m[2] ? "c-str" : m[3] ? "c-num" : "c-kw";
+    out += '<span class="' + cls + '">' + escapeHtml(t) + "</span>";
+    last = m.index + t.length;
+  }
+  out += escapeHtml(code.slice(last));
+  return out;
+}
+
+/* ============================ State + elements ============================ */
+let mode = "describe";
+let selectedAlgo = null;
+let online = false;
+let lastCode = "";
+let lastGen = null;   // { prompt, language, code, truncated } for Claude generations
+
+const els = {
+  stage: document.getElementById("stage"),
+  modeline: document.getElementById("modeline"),
+  modeText: document.getElementById("modeText"),
+  catalog: document.getElementById("catalog"),
+  describe: document.getElementById("ta-describe"),
+  pseudo: document.getElementById("ta-pseudo"),
+  lang: document.getElementById("lang"),
+  go: document.getElementById("go"),
+  output: document.getElementById("output"),
+  srcBadge: document.getElementById("srcBadge"),
+  srcText: document.getElementById("srcText"),
+  copyBtn: document.getElementById("copyBtn"),
+  dlBtn: document.getElementById("dlBtn"),
+  contBtn: document.getElementById("contBtn"),
+  charcount: document.getElementById("charcount"),
+  toast: document.getElementById("toast")
+};
+
+/* ---- Build catalog grid ---- */
+for (const [id, a] of Object.entries(CATALOG)) {
+  const b = document.createElement("button");
+  b.className = "algo";
+  b.setAttribute("aria-pressed", "false");
+  b.dataset.id = id;
+  b.innerHTML = '<div class="nm">' + a.name + '</div><div class="cat">' + a.cat + '</div>';
+  b.addEventListener("click", () => {
+    selectedAlgo = id;
+    els.catalog.querySelectorAll(".algo").forEach(x => x.setAttribute("aria-pressed", x.dataset.id === id ? "true" : "false"));
+  });
+  els.catalog.appendChild(b);
+}
+
+/* ---- Tabs ---- */
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    mode = tab.dataset.mode;
+    document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", t === tab ? "true" : "false"));
+    els.describe.style.display = mode === "describe" ? "" : "none";
+    els.pseudo.style.display = mode === "pseudo" ? "" : "none";
+    els.catalog.style.display = mode === "catalog" ? "grid" : "none";
+    updateCount();
+  });
+});
+
+function activeText(){
+  if (mode === "describe") return els.describe.value.trim();
+  if (mode === "pseudo") return els.pseudo.value.trim();
+  return selectedAlgo ? CATALOG[selectedAlgo].name : "";
+}
+function updateCount(){
+  if (mode === "catalog"){ els.charcount.textContent = selectedAlgo ? "1 selected" : ""; return; }
+  const n = activeText().length;
+  els.charcount.textContent = n ? n + " chars" : "";
+}
+els.describe.addEventListener("input", updateCount);
+els.pseudo.addEventListener("input", updateCount);
+
+/* ============================ Engine probe ============================ */
+async function probe(){
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1000,
+        messages: [{ role: "user", content: "Reply with the single word: ok" }] })
+    });
+    online = r.ok;
+  } catch { online = false; }
+  els.modeline.classList.toggle("live", online);
+  els.modeText.textContent = online ? "Claude engine ready" : "offline · library mode";
+}
+probe();
+
+/* ============================ Generate ============================ */
+function langKey(lang){
+  return ({ "Python":"py", "JavaScript":"js" })[lang] || null;
+}
+
+const CLAUDE_SYSTEM = "You are a precise code generator. Output ONLY runnable code in the requested " +
+  "language that implements what the user asks. No prose, no markdown fences, no explanation. " +
+  "Use idiomatic style, clear names, and include a one-line usage example as a comment. " +
+  "If continuing, resume exactly where the previous text stopped without repeating it.";
+
+function stripFences(t){
+  return t.replace(/^```[a-zA-Z0-9+#]*\n?/, "").replace(/\n?```$/, "").trim();
+}
+
+// One round-trip. Prefills `seed` (already-generated text) as an assistant turn so
+// the model resumes from it. Returns the raw new chunk plus whether it was cut off.
+async function claudeRound(prompt, seed){
+  const messages = [{ role: "user", content: prompt }];
+  const prefill = seed.replace(/[ \t\r\n]+$/, "");
+  if (prefill) messages.push({ role: "assistant", content: prefill });
+
+  const r = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1000, system: CLAUDE_SYSTEM, messages })
+  });
+  if (!r.ok) throw new Error("status " + r.status);
+  const data = await r.json();
+  const chunk = (data.content || []).map(b => b.type === "text" ? b.text : "").join("");
+  return { chunk, truncated: data.stop_reason === "max_tokens" };
+}
+
+// Runs an initial generation (seed = "") or extends an existing one (seed = prior code).
+// Auto-stitches up to `rounds` times when the response is cut off by the token cap.
+async function streamClaude(prompt, seed, rounds, onProgress){
+  let full = seed;
+  let truncated = false;
+  for (let i = 0; i < rounds; i++){
+    if (onProgress) onProgress(full ? i + 1 : 0);
+    const res = await claudeRound(prompt, full);
+    full += res.chunk;
+    truncated = res.truncated;
+    if (!truncated) break;
+  }
+  const code = stripFences(full);
+  if (!code) throw new Error("empty");
+  return { code, truncated };
+}
+
+function offlineGenerate(language){
+  const key = langKey(language);
+  let algoId = null;
+
+  if (mode === "catalog") {
+    algoId = selectedAlgo;
+  } else {
+    const text = activeText().toLowerCase();
+    for (const [re, id] of DETECT){ if (re.test(text)){ algoId = id; break; } }
+  }
+
+  if (!algoId){
+    return { kind: "notice", text:
+      "Offline mode draws from the built-in library, which covers the\n" +
+      "classic algorithms (search, sorting, graphs, number theory).\n\n" +
+      "It couldn't match your input to one of them. Options:\n\n" +
+      "  • Open the Catalog tab and pick an algorithm directly\n" +
+      "  • Name a known algorithm in your description\n" +
+      "  • Reconnect to let Claude write from a custom description" };
+  }
+
+  const algo = CATALOG[algoId];
+  if (key && algo[key]){
+    return { kind: "code", code: algo[key], note: null };
+  }
+  // language not in the offline library -> serve Python, say so plainly
+  return { kind: "code", code: algo.py,
+    note: "library has Python + JavaScript offline; showing Python for " + language };
+}
+
+function buildPrompt(language){
+  if (mode === "describe") return "Implement this in " + language + ":\n\n" + els.describe.value.trim();
+  if (mode === "pseudo")  return "Translate this pseudocode into working " + language + " code:\n\n" + els.pseudo.value.trim();
+  const a = CATALOG[selectedAlgo];
+  return "Implement the " + a.name + " algorithm in " + language + ". (" + a.desc + ")";
+}
+
+function renderCode(code){
+  lastCode = code;
+  els.output.className = "";
+  els.output.innerHTML = highlight(code);
+  els.copyBtn.disabled = false;
+  els.dlBtn.disabled = false;
+}
+function renderNotice(text){
+  lastCode = "";
+  els.output.className = "notice";
+  els.output.innerHTML = text.replace(/^([^\n]+)/, "<b>$1</b>");
+  els.copyBtn.disabled = true;
+  els.dlBtn.disabled = true;
+  els.contBtn.style.display = "none";
+}
+function setBadge(kind, label){
+  els.srcBadge.style.display = "inline-flex";
+  els.srcBadge.className = "src-badge " + kind;
+  els.srcText.textContent = label;
+}
+function updateContinue(){
+  const show = !!(lastGen && lastGen.truncated && online);
+  els.contBtn.style.display = show ? "" : "none";
+  els.contBtn.disabled = !show;
+}
+
+const AUTO_ROUNDS = 4;      // initial call + up to 3 auto-stitches
+const CONTINUE_ROUNDS = 4;  // added per manual Continue click
+
+async function generate(){
+  const text = activeText();
+  if (!text){
+    toast(mode === "catalog" ? "Pick an algorithm first" : "Add some input first");
+    return;
+  }
+  const language = els.lang.value;
+  lastGen = null;
+  els.contBtn.style.display = "none";
+  els.go.disabled = true;
+  els.stage.classList.add("busy");
+  els.go.textContent = "Generating…";
+
+  try {
+    if (online){
+      try {
+        const prompt = buildPrompt(language);
+        const { code, truncated } = await streamClaude(prompt, "", AUTO_ROUNDS, part => {
+          els.go.textContent = part > 1 ? "Stitching part " + part + "…" : "Generating…";
+        });
+        renderCode(code);
+        lastGen = { prompt, language, code, truncated };
+        setBadge("claude", "written by Claude · " + language + (truncated ? " · cut off" : ""));
+        updateContinue();
+        return;
+      } catch (e){
+        online = false;
+        els.modeline.classList.remove("live");
+        els.modeText.textContent = "offline · library mode";
+      }
+    }
+    // offline path
+    const res = offlineGenerate(language);
+    if (res.kind === "code"){
+      renderCode(res.code);
+      els.contBtn.style.display = "none";
+      setBadge("offline", "built-in library" + (res.note ? " · " + res.note : ""));
+    } else {
+      renderNotice(res.text);
+      setBadge("offline", "built-in library");
+    }
+  } finally {
+    els.go.disabled = false;
+    els.stage.classList.remove("busy");
+    els.go.textContent = "Generate code";
+  }
+}
+els.go.addEventListener("click", generate);
+
+async function continueGen(){
+  if (!lastGen || !online) return;
+  els.contBtn.disabled = true;
+  els.contBtn.textContent = "Stitching…";
+  els.stage.classList.add("busy");
+  try {
+    const { code, truncated } = await streamClaude(lastGen.prompt, lastGen.code, CONTINUE_ROUNDS, part => {
+      if (part > 1) els.contBtn.textContent = "Stitching part " + part + "…";
+    });
+    renderCode(code);
+    lastGen = { prompt: lastGen.prompt, language: lastGen.language, code, truncated };
+    setBadge("claude", "written by Claude · " + lastGen.language + (truncated ? " · cut off" : ""));
+    if (!truncated) toast("Generation complete");
+  } catch (e){
+    toast("Couldn't continue — connection dropped");
+    online = false;
+    els.modeline.classList.remove("live");
+    els.modeText.textContent = "offline · library mode";
+  } finally {
+    els.contBtn.textContent = "Continue ↓";
+    els.stage.classList.remove("busy");
+    updateContinue();
+  }
+}
+els.contBtn.addEventListener("click", continueGen);
+
+/* ============================ Copy / download / toast ============================ */
+const EXT = { Python:"py", JavaScript:"js", TypeScript:"ts", Java:"java", "C++":"cpp", Go:"go", Rust:"rs", Ruby:"rb", "C#":"cs" };
+
+// Robust copy: modern Clipboard API, then legacy execCommand, then manual-select.
+async function copyText(text){
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (e) { /* permission blocked in sandbox — fall through */ }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.top = "-1000px";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, ta.value.length);
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    if (ok) return true;
+  } catch (e) { /* fall through to manual select */ }
+  return false;
+}
+
+// Select the rendered code so the user can press the copy shortcut themselves.
+function selectOutput(){
+  try {
+    const range = document.createRange();
+    range.selectNodeContents(els.output);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  } catch (e) { /* no-op */ }
+}
+
+els.copyBtn.addEventListener("click", async () => {
+  if (!lastCode) return;
+  if (await copyText(lastCode)) { toast("Copied"); return; }
+  selectOutput();
+  toast("Select-all done — press " + (navigator.platform.indexOf("Mac") > -1 ? "⌘C" : "Ctrl+C"));
+});
+
+els.dlBtn.addEventListener("click", () => {
+  if (!lastCode) return;
+  const filename = "algorithm." + (EXT[els.lang.value] || "txt");
+  try {
+    // Route any fallback navigation into a hidden iframe so a restricted webview
+    // (no allow-downloads) can't navigate — and blank — the artifact itself.
+    let sink = document.getElementById("dl-sink");
+    if (!sink){
+      sink = document.createElement("iframe");
+      sink.id = "dl-sink"; sink.name = "dl-sink";
+      sink.style.display = "none";
+      document.body.appendChild(sink);
+    }
+    const blob = new Blob([lastCode], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.target = "dl-sink";
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    toast("Saving " + filename + "…");
+  } catch (e) {
+    copyText(lastCode).then(ok =>
+      toast(ok ? "Download blocked here — copied instead" : "Download blocked — open in a browser tab"));
+  }
+});
+
+let toastTimer;
+function toast(msg){
+  els.toast.textContent = msg;
+  els.toast.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => els.toast.classList.remove("show"), 1900);
+}
+
+/* keyboard: Cmd/Ctrl+Enter to generate */
+document.addEventListener("keydown", e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") generate();
+});
+</script>
+</body>
+</html>
