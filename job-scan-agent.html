@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Board Scan — Ashby + Greenhouse Job Radar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F6F7F4;
+    --ink: #1A2420;
+    --muted: #67766D;
+    --card: #FFFFFF;
+    --line: #DCE3DC;
+    --pine: #1E6B4F;
+    --pine-soft: #E4F0EA;
+    --amber: #E8A13D;
+    --amber-soft: #FBF1DE;
+    --ash: #5B4FC7;      /* Ashby source color */
+    --ash-soft: #EDEBFA;
+    --gh: #1E7A66;       /* Greenhouse source color */
+    --gh-soft: #E3F1ED;
+    --danger: #B4442E;
+    --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --disp: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+    --body: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 14.5px;
+    line-height: 1.5;
+  }
+  a { color: inherit; }
+  button { font-family: inherit; cursor: pointer; }
+  input, select { font-family: inherit; font-size: 14px; color: var(--ink); }
+  :focus-visible { outline: 2px solid var(--pine); outline-offset: 2px; }
+
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 28px 20px 80px; }
+
+  /* ---------- Header / instrument readout ---------- */
+  header { margin-bottom: 22px; }
+  .brand {
+    font-family: var(--disp);
+    font-weight: 700;
+    font-size: 26px;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .brand .dot {
+    width: 11px; height: 11px; border-radius: 50%;
+    background: var(--pine);
+    position: relative;
+    flex: none;
+  }
+  .brand .dot::after {
+    content: ""; position: absolute; inset: -5px;
+    border-radius: 50%; border: 2px solid var(--pine);
+    opacity: 0; 
+  }
+  .scanning .brand .dot::after { animation: ping 1.1s ease-out infinite; }
+  @keyframes ping { 0% { transform: scale(.5); opacity: .7; } 100% { transform: scale(1.4); opacity: 0; } }
+
+  .readout {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--muted);
+    margin-top: 6px;
+    min-height: 18px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .readout b { color: var(--ink); font-weight: 500; }
+  .readout .warn { color: var(--danger); }
+
+  /* ---------- Panels ---------- */
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-family: var(--disp);
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  /* Boards manager */
+  .boards-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 720px) { .boards-grid { grid-template-columns: 1fr; } }
+  .board-col label {
+    font-family: var(--mono); font-size: 12px; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 6px; margin-bottom: 8px;
+  }
+  .src-key { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+  .src-key.ashby { background: var(--ash); }
+  .src-key.gh { background: var(--gh); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; min-height: 30px; }
+  .chip {
+    font-family: var(--mono); font-size: 12px;
+    background: var(--bg); border: 1px solid var(--line);
+    border-radius: 6px; padding: 4px 6px 4px 9px;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .chip.err { border-color: var(--danger); color: var(--danger); }
+  .chip button {
+    border: none; background: none; color: var(--muted);
+    font-size: 14px; line-height: 1; padding: 0 2px;
+  }
+  .chip button:hover { color: var(--danger); }
+  .add-row { display: flex; gap: 6px; }
+  .add-row input {
+    flex: 1; min-width: 0;
+    border: 1px solid var(--line); border-radius: 7px;
+    padding: 7px 10px; background: var(--bg);
+    font-family: var(--mono); font-size: 12.5px;
+  }
+  .add-row input::placeholder { color: #9AA79E; }
+  .btn {
+    border: 1px solid var(--line); background: var(--card);
+    border-radius: 7px; padding: 7px 13px;
+    font-size: 13px; font-weight: 500;
+    transition: background .12s ease;
+  }
+  .btn:hover { background: var(--bg); }
+  .btn.primary {
+    background: var(--pine); border-color: var(--pine); color: #fff;
+    font-family: var(--disp); font-weight: 600; letter-spacing: 0.02em;
+  }
+  .btn.primary:hover { background: #185C43; }
+  .btn.primary:disabled { opacity: .55; cursor: wait; }
+  .btn.small { padding: 5px 10px; font-size: 12px; }
+
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 14px; }
+  .toolbar .spacer { flex: 1; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 10px; }
+  .hint code { font-family: var(--mono); font-size: 11.5px; background: var(--bg); padding: 1px 5px; border-radius: 4px; }
+
+  /* ---------- Filter rail ---------- */
+  .rail {
+    position: sticky; top: 0; z-index: 5;
+    background: var(--bg);
+    padding: 10px 0 12px;
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 4px;
+  }
+  .seg {
+    display: inline-flex; border: 1px solid var(--line);
+    border-radius: 8px; overflow: hidden; background: var(--card);
+  }
+  .seg button {
+    border: none; background: none; padding: 7px 13px;
+    font-size: 13px; font-weight: 500; color: var(--muted);
+    border-right: 1px solid var(--line);
+  }
+  .seg button:last-child { border-right: none; }
+  .seg button.active { background: var(--pine); color: #fff; }
+  .rail input[type="search"] {
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 7px 11px; background: var(--card); min-width: 170px; flex: 1;
+  }
+  .rail select {
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 7px 9px; background: var(--card);
+  }
+  .count-line {
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+    width: 100%;
+  }
+  .count-line b { color: var(--ink); font-weight: 500; }
+
+  /* ---------- Results ledger ---------- */
+  .rows { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--card); }
+  .row {
+    display: grid;
+    grid-template-columns: 14px 1fr auto;
+    gap: 12px;
+    padding: 12px 16px 12px 12px;
+    border-bottom: 1px solid var(--line);
+    align-items: baseline;
+  }
+  .row:last-child { border-bottom: none; }
+  .row:hover { background: #FBFCFA; }
+  .row .newdot { width: 7px; height: 7px; border-radius: 50%; margin-top: 6px; }
+  .row.is-new .newdot { background: var(--amber); }
+  .row.is-new { background: var(--amber-soft); }
+  .row.is-new:hover { background: #F8EBD2; }
+  .r-main a.title {
+    font-weight: 600; font-size: 14.5px; text-decoration: none;
+  }
+  .r-main a.title:hover { color: var(--pine); text-decoration: underline; }
+  .r-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; align-items: center; }
+  .tag {
+    font-size: 11.5px; font-weight: 500;
+    padding: 2px 8px; border-radius: 999px;
+    border: 1px solid transparent;
+  }
+  .tag.co { font-family: var(--mono); background: var(--bg); border-color: var(--line); color: var(--ink); }
+  .tag.src-ashby { background: var(--ash-soft); color: var(--ash); }
+  .tag.src-greenhouse { background: var(--gh-soft); color: var(--gh); }
+  .tag.remote { background: var(--pine-soft); color: var(--pine); }
+  .tag.hybrid { background: #FDF3E3; color: #9A6A14; }
+  .tag.onsite { background: #EEF0ED; color: var(--muted); }
+  .tag.loc, .tag.dept { color: var(--muted); padding-left: 0; padding-right: 0; font-weight: 400; }
+  .tag.dept::before { content: "·"; margin-right: 6px; }
+  .r-date {
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+    white-space: nowrap; text-align: right;
+  }
+  .r-date .new-label { color: var(--amber); font-weight: 500; display: block; font-size: 10.5px; letter-spacing: .06em; }
+  @media (max-width: 640px) {
+    .row { grid-template-columns: 14px 1fr; }
+    .r-date { grid-column: 2; text-align: left; margin-top: 2px; }
+    .r-date .new-label { display: inline; margin-right: 8px; }
+  }
+
+  .empty {
+    padding: 42px 20px; text-align: center; color: var(--muted);
+    font-size: 14px;
+  }
+  .empty b { color: var(--ink); }
+
+  .errors { margin-top: 10px; }
+  .errors div { font-family: var(--mono); font-size: 12px; color: var(--danger); margin-top: 3px; }
+
+  footer {
+    margin-top: 26px; font-size: 12px; color: var(--muted);
+    font-family: var(--mono);
+  }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <header>
+    <div class="brand"><span class="dot"></span>Board Scan</div>
+    <div class="readout" id="readout">IDLE · add board slugs, then run a scan</div>
+  </header>
+
+  <!-- Boards manager -->
+  <div class="panel">
+    <h2>Boards to watch</h2>
+    <div class="boards-grid">
+      <div class="board-col">
+        <label><span class="src-key gh"></span>Greenhouse board tokens</label>
+        <div class="chips" id="ghChips"></div>
+        <div class="add-row">
+          <input id="ghInput" placeholder="e.g. anthropic" autocomplete="off">
+          <button class="btn small" onclick="addBoard('greenhouse')">Add</button>
+        </div>
+      </div>
+      <div class="board-col">
+        <label><span class="src-key ashby"></span>Ashby board names</label>
+        <div class="chips" id="ashbyChips"></div>
+        <div class="add-row">
+          <input id="ashbyInput" placeholder="e.g. openai" autocomplete="off">
+          <button class="btn small" onclick="addBoard('ashby')">Add</button>
+        </div>
+      </div>
+    </div>
+    <div class="toolbar">
+      <button class="btn primary" id="scanBtn" onclick="scan()">Run scan</button>
+      <button class="btn" onclick="loadDemo()">Load demo data</button>
+      <span class="spacer"></span>
+      <button class="btn small" onclick="exportConfig()">Copy config</button>
+      <button class="btn small" onclick="importConfig()">Paste config</button>
+      <button class="btn small" onclick="exportCSV()">Export CSV</button>
+    </div>
+    <div class="hint">
+      Slugs come from each company's job board URL:
+      <code>boards.greenhouse.io/&lt;token&gt;</code> and <code>jobs.ashbyhq.com/&lt;name&gt;</code>.
+      Config copy/paste lets you carry your board list between sessions.
+    </div>
+    <div class="errors" id="errors"></div>
+  </div>
+
+  <!-- Filter rail -->
+  <div class="rail">
+    <div class="seg" id="remoteSeg" role="group" aria-label="Work arrangement filter">
+      <button data-v="all" class="active" onclick="setRemote('all', this)">All</button>
+      <button data-v="remote" onclick="setRemote('remote', this)">Remote</button>
+      <button data-v="hybrid" onclick="setRemote('hybrid', this)">Hybrid</button>
+      <button data-v="onsite" onclick="setRemote('onsite', this)">On-site</button>
+    </div>
+    <input type="search" id="kw" placeholder="Filter by title, dept, location…" oninput="render()">
+    <select id="srcSel" onchange="render()">
+      <option value="all">All sources</option>
+      <option value="greenhouse">Greenhouse</option>
+      <option value="ashby">Ashby</option>
+    </select>
+    <select id="newSel" onchange="render()" title="Highlight and optionally show only recent postings">
+      <option value="7">New = last 7 days</option>
+      <option value="1">New = last 24 hours</option>
+      <option value="3">New = last 3 days</option>
+      <option value="14">New = last 14 days</option>
+    </select>
+    <select id="newOnly" onchange="render()">
+      <option value="all">Show all</option>
+      <option value="new">Show only new</option>
+    </select>
+    <select id="sortSel" onchange="render()">
+      <option value="date">Sort: newest first</option>
+      <option value="company">Sort: company A→Z</option>
+      <option value="title">Sort: title A→Z</option>
+    </select>
+    <div class="count-line" id="countLine"></div>
+  </div>
+
+  <div class="rows" id="rows">
+    <div class="empty">No postings yet. <b>Run scan</b> to pull live boards, or <b>Load demo data</b> to try the interface offline.</div>
+  </div>
+
+  <footer>Public job-board APIs only · no keys, no tracking · single file, deploy anywhere</footer>
+</div>
+
+<script>
+"use strict";
+
+/* ---------------- State (in-memory; use Copy/Paste config to persist) ---------------- */
+const state = {
+  boards: {
+    greenhouse: ["anthropic", "datadog", "duolingo"],
+    ashby: ["openai", "ramp", "linear"]
+  },
+  boardErrors: {},          // slug -> true when last fetch failed
+  jobs: [],                 // normalized job records
+  remote: "all",
+  lastScan: null
+};
+
+/* ---------------- Normalized job shape ----------------
+   { id, source, company, title, dept, location, arrangement, url, date (Date|null) }
+   arrangement: "remote" | "hybrid" | "onsite"
+--------------------------------------------------------- */
+
+function classifyArrangement(locationText, isRemoteFlag) {
+  const t = (locationText || "").toLowerCase();
+  if (t.includes("hybrid")) return "hybrid";
+  if (isRemoteFlag === true) return "remote";
+  if (t.includes("remote")) return "remote";
+  return "onsite";
+}
+
+/* ---------------- Fetchers ---------------- */
+async function fetchGreenhouse(token) {
+  const url = `https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(token)}/jobs`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  return (data.jobs || []).map(j => ({
+    id: `gh-${token}-${j.id}`,
+    source: "greenhouse",
+    company: token,
+    title: j.title || "Untitled role",
+    dept: (j.departments && j.departments[0] && j.departments[0].name) || "",
+    location: (j.location && j.location.name) || "",
+    arrangement: classifyArrangement(j.location && j.location.name, null),
+    url: j.absolute_url,
+    date: parseDate(j.first_published || j.updated_at)
+  }));
+}
+
+async function fetchAshby(name) {
+  const url = `https://api.ashbyhq.com/posting-api/job-board/${encodeURIComponent(name)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  return (data.jobs || []).map(j => ({
+    id: `ash-${name}-${j.id}`,
+    source: "ashby",
+    company: name,
+    title: j.title || "Untitled role",
+    dept: j.department || j.team || "",
+    location: j.location || "",
+    arrangement: classifyArrangement(j.location, j.isRemote),
+    url: j.jobUrl || j.applyUrl,
+    date: parseDate(j.publishedAt)
+  }));
+}
+
+function parseDate(s) {
+  if (!s) return null;
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+/* ---------------- Scan orchestration ---------------- */
+async function scan() {
+  const btn = document.getElementById("scanBtn");
+  btn.disabled = true;
+  document.body.classList.add("scanning");
+  setReadout("SCANNING · querying " + totalBoards() + " boards…");
+  state.boardErrors = {};
+
+  const tasks = [];
+  state.boards.greenhouse.forEach(t =>
+    tasks.push(fetchGreenhouse(t).then(jobs => ({ ok: true, jobs })).catch(e => ({ ok: false, slug: "greenhouse/" + t, err: e }))));
+  state.boards.ashby.forEach(n =>
+    tasks.push(fetchAshby(n).then(jobs => ({ ok: true, jobs })).catch(e => ({ ok: false, slug: "ashby/" + n, err: e }))));
+
+  const results = await Promise.all(tasks);
+  const jobs = [];
+  const failures = [];
+  results.forEach(r => {
+    if (r.ok) jobs.push(...r.jobs);
+    else {
+      failures.push(r.slug + " — " + (r.err && r.err.message ? r.err.message : "fetch failed"));
+      state.boardErrors[r.slug] = true;
+    }
+  });
+
+  // Dedupe (same company + title + location appearing on both platforms)
+  const seen = new Set();
+  state.jobs = jobs.filter(j => {
+    const key = (j.company + "|" + j.title + "|" + j.location).toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  state.lastScan = new Date();
+  renderBoards();
+  render(failures);
+  document.body.classList.remove("scanning");
+  btn.disabled = false;
+
+  if (state.jobs.length === 0 && failures.length === tasks.length && tasks.length > 0) {
+    setReadout('<span class="warn">SCAN FAILED · all boards unreachable. If previewing in a sandbox, cross-origin requests may be blocked — open this file locally or deploy it (e.g. GitHub Pages), or use demo data.</span>');
+  }
+}
+
+function totalBoards() {
+  return state.boards.greenhouse.length + state.boards.ashby.length;
+}
+
+/* ---------------- Board list management ---------------- */
+function addBoard(source) {
+  const input = document.getElementById(source === "greenhouse" ? "ghInput" : "ashbyInput");
+  const slug = input.value.trim().toLowerCase().replace(/^https?:\/\/[^/]+\//, "").replace(/\/.*$/, "");
+  if (!slug) return;
+  if (!state.boards[source].includes(slug)) state.boards[source].push(slug);
+  input.value = "";
+  renderBoards();
+}
+
+function removeBoard(source, slug) {
+  state.boards[source] = state.boards[source].filter(s => s !== slug);
+  renderBoards();
+}
+
+function renderBoards() {
+  const mk = (source, elId) => {
+    const el = document.getElementById(elId);
+    el.innerHTML = "";
+    state.boards[source].forEach(slug => {
+      const errKey = source + "/" + slug;
+      const chip = document.createElement("span");
+      chip.className = "chip" + (state.boardErrors[errKey] ? " err" : "");
+      chip.textContent = slug + " ";
+      const x = document.createElement("button");
+      x.textContent = "×";
+      x.setAttribute("aria-label", "Remove " + slug);
+      x.onclick = () => removeBoard(source, slug);
+      chip.appendChild(x);
+      el.appendChild(chip);
+    });
+  };
+  mk("greenhouse", "ghChips");
+  mk("ashby", "ashbyChips");
+}
+
+// Enter key adds
+["ghInput", "ashbyInput"].forEach(id => {
+  document.getElementById(id).addEventListener("keydown", e => {
+    if (e.key === "Enter") addBoard(id === "ghInput" ? "greenhouse" : "ashby");
+  });
+});
+
+/* ---------------- Filtering + rendering ---------------- */
+function setRemote(v, btn) {
+  state.remote = v;
+  document.querySelectorAll("#remoteSeg button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  render();
+}
+
+function newCutoff() {
+  const days = parseInt(document.getElementById("newSel").value, 10);
+  return Date.now() - days * 86400000;
+}
+
+function filteredJobs() {
+  const kw = document.getElementById("kw").value.trim().toLowerCase();
+  const src = document.getElementById("srcSel").value;
+  const onlyNew = document.getElementById("newOnly").value === "new";
+  const cutoff = newCutoff();
+
+  return state.jobs.filter(j => {
+    if (state.remote !== "all" && j.arrangement !== state.remote) return false;
+    if (src !== "all" && j.source !== src) return false;
+    if (onlyNew && !(j.date && j.date.getTime() >= cutoff)) return false;
+    if (kw) {
+      const hay = (j.title + " " + j.dept + " " + j.location + " " + j.company).toLowerCase();
+      if (!hay.includes(kw)) return false;
+    }
+    return true;
+  });
+}
+
+function sortJobs(jobs) {
+  const mode = document.getElementById("sortSel").value;
+  const byDate = (a, b) => (b.date ? b.date.getTime() : 0) - (a.date ? a.date.getTime() : 0);
+  if (mode === "date") return jobs.sort(byDate);
+  if (mode === "company") return jobs.sort((a, b) => a.company.localeCompare(b.company) || byDate(a, b));
+  return jobs.sort((a, b) => a.title.localeCompare(b.title));
+}
+
+function fmtDate(d) {
+  if (!d) return "—";
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+function render(failures) {
+  const rowsEl = document.getElementById("rows");
+  const jobs = sortJobs(filteredJobs());
+  const cutoff = newCutoff();
+
+  // counts
+  const all = state.jobs;
+  const remoteCount = all.filter(j => j.arrangement === "remote").length;
+  const newCount = all.filter(j => j.date && j.date.getTime() >= cutoff).length;
+  document.getElementById("countLine").innerHTML =
+    all.length === 0 ? "" :
+    `showing <b>${jobs.length}</b> of <b>${all.length}</b> postings · <b>${remoteCount}</b> remote · <b>${newCount}</b> new in window`;
+
+  // readout
+  if (state.lastScan) {
+    setReadout(`SCAN COMPLETE · <b>${totalBoards()}</b> boards · <b>${all.length}</b> postings · <b>${newCount}</b> new · ${state.lastScan.toLocaleTimeString()}`);
+  }
+
+  // errors
+  const errEl = document.getElementById("errors");
+  errEl.innerHTML = "";
+  (failures || []).forEach(f => {
+    const d = document.createElement("div");
+    d.textContent = "⚠ " + f;
+    errEl.appendChild(d);
+  });
+
+  // rows
+  rowsEl.innerHTML = "";
+  if (jobs.length === 0) {
+    const msg = all.length === 0
+      ? 'No postings yet. <b>Run scan</b> to pull live boards, or <b>Load demo data</b> to try the interface offline.'
+      : 'No postings match the current filters.';
+    rowsEl.innerHTML = `<div class="empty">${msg}</div>`;
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  jobs.forEach(j => {
+    const isNew = j.date && j.date.getTime() >= cutoff;
+    const row = document.createElement("div");
+    row.className = "row" + (isNew ? " is-new" : "");
+
+    const dot = document.createElement("span");
+    dot.className = "newdot";
+
+    const main = document.createElement("div");
+    main.className = "r-main";
+    const a = document.createElement("a");
+    a.className = "title";
+    a.href = j.url || "#";
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.textContent = j.title;
+    main.appendChild(a);
+
+    const meta = document.createElement("div");
+    meta.className = "r-meta";
+    meta.appendChild(tag(j.company, "co"));
+    meta.appendChild(tag(j.source === "ashby" ? "Ashby" : "Greenhouse", "src-" + j.source));
+    meta.appendChild(tag(
+      j.arrangement === "remote" ? "Remote" : j.arrangement === "hybrid" ? "Hybrid" : "On-site",
+      j.arrangement
+    ));
+    if (j.location) meta.appendChild(tag(j.location, "loc"));
+    if (j.dept) meta.appendChild(tag(j.dept, "dept"));
+    main.appendChild(meta);
+
+    const date = document.createElement("div");
+    date.className = "r-date";
+    date.innerHTML = (isNew ? '<span class="new-label">NEW</span>' : "") + fmtDate(j.date);
+
+    row.appendChild(dot);
+    row.appendChild(main);
+    row.appendChild(date);
+    frag.appendChild(row);
+  });
+  rowsEl.appendChild(frag);
+}
+
+function tag(text, cls) {
+  const s = document.createElement("span");
+  s.className = "tag " + cls;
+  s.textContent = text;
+  return s;
+}
+
+function setReadout(html) {
+  document.getElementById("readout").innerHTML = html;
+}
+
+/* ---------------- Config import/export ---------------- */
+async function exportConfig() {
+  const cfg = JSON.stringify({ boards: state.boards }, null, 0);
+  try {
+    await navigator.clipboard.writeText(cfg);
+    setReadout("CONFIG COPIED · paste it back anytime with Paste config");
+  } catch {
+    prompt("Copy your config:", cfg);
+  }
+}
+
+function importConfig() {
+  const raw = prompt("Paste a config JSON:");
+  if (!raw) return;
+  try {
+    const cfg = JSON.parse(raw);
+    if (cfg.boards && Array.isArray(cfg.boards.greenhouse) && Array.isArray(cfg.boards.ashby)) {
+      state.boards = cfg.boards;
+      renderBoards();
+      setReadout("CONFIG LOADED · " + totalBoards() + " boards ready");
+    } else {
+      setReadout('<span class="warn">CONFIG INVALID · expected { "boards": { "greenhouse": [], "ashby": [] } }</span>');
+    }
+  } catch {
+    setReadout('<span class="warn">CONFIG INVALID · could not parse JSON</span>');
+  }
+}
+
+/* ---------------- CSV export ---------------- */
+function exportCSV() {
+  const jobs = sortJobs(filteredJobs());
+  if (jobs.length === 0) { setReadout('<span class="warn">EXPORT SKIPPED · nothing to export with current filters</span>'); return; }
+  const esc = v => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+  const lines = [["title","company","source","arrangement","location","department","posted","url"].join(",")];
+  jobs.forEach(j => lines.push([j.title, j.company, j.source, j.arrangement, j.location, j.dept, j.date ? j.date.toISOString().slice(0,10) : "", j.url].map(esc).join(",")));
+  const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "board-scan-" + new Date().toISOString().slice(0,10) + ".csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+  setReadout("EXPORTED · " + jobs.length + " rows to CSV");
+}
+
+/* ---------------- Demo data (offline fallback) ---------------- */
+function loadDemo() {
+  const now = Date.now();
+  const d = daysAgo => new Date(now - daysAgo * 86400000);
+  state.jobs = [
+    { id:"d1", source:"greenhouse", company:"anthropic", title:"Senior Applied ML Scientist", dept:"Research", location:"Remote — US", arrangement:"remote", url:"#", date:d(0.4) },
+    { id:"d2", source:"ashby", company:"ramp", title:"Data Science Manager, Risk", dept:"Data", location:"New York, NY (Hybrid)", arrangement:"hybrid", url:"#", date:d(1.2) },
+    { id:"d3", source:"greenhouse", company:"datadog", title:"Director, ML Engineering", dept:"Engineering", location:"Atlanta, GA", arrangement:"onsite", url:"#", date:d(2.5) },
+    { id:"d4", source:"ashby", company:"linear", title:"Staff Machine Learning Engineer", dept:"Product Engineering", location:"Remote — North America", arrangement:"remote", url:"#", date:d(4) },
+    { id:"d5", source:"ashby", company:"openai", title:"Research Program Manager", dept:"Research Ops", location:"San Francisco, CA", arrangement:"onsite", url:"#", date:d(6) },
+    { id:"d6", source:"greenhouse", company:"duolingo", title:"Principal Data Scientist, Growth", dept:"Data Science", location:"Remote — US", arrangement:"remote", url:"#", date:d(9) },
+    { id:"d7", source:"greenhouse", company:"anthropic", title:"Applied AI, Energy & Industrials", dept:"Applied AI", location:"Dallas, TX (Hybrid)", arrangement:"hybrid", url:"#", date:d(12) },
+    { id:"d8", source:"ashby", company:"ramp", title:"Senior Analytics Engineer", dept:"Data", location:"Remote — US", arrangement:"remote", url:"#", date:d(16) }
+  ];
+  state.lastScan = new Date();
+  state.boardErrors = {};
+  renderBoards();
+  render();
+  setReadout("DEMO LOADED · " + state.jobs.length + " sample postings (not live data)");
+}
+
+/* ---------------- Init ---------------- */
+renderBoards();
+render();
+</script>
+</body>
+</html>
