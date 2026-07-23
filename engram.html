@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Engram — Memory-Enabled Conversational Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* chat side — paper */
+    --paper:#F4F5F2; --ink:#1C2422; --muted:#66716D; --hair:#DCE0DC;
+    --teal:#1F6E62; --teal-soft:#E3EEEB;
+    /* inspector side — bench */
+    --bench:#101614; --panel:#17201D; --panel-hair:#243029;
+    --amber:#E8A33D; --amber-dim:#8A6E3C; --dim:#7D8C86; --trace:#4FBF95;
+    --danger:#C25B4A;
+    --display:'Space Grotesk',system-ui,sans-serif;
+    --body:system-ui,-apple-system,'Segoe UI',sans-serif;
+    --mono:ui-monospace,'SF Mono','Cascadia Code',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:var(--body);background:var(--paper);color:var(--ink);display:flex;flex-direction:column;overflow:hidden}
+
+  /* ---------- top bar ---------- */
+  header{display:flex;align-items:center;gap:14px;padding:10px 18px;border-bottom:1px solid var(--hair);background:var(--paper);flex-shrink:0}
+  .wordmark{font-family:var(--display);font-weight:700;font-size:19px;letter-spacing:.14em}
+  .wordmark span{color:var(--teal)}
+  .status{font-family:var(--mono);font-size:11px;padding:3px 9px;border-radius:20px;border:1px solid var(--hair);color:var(--muted)}
+  .status.live{border-color:var(--teal);color:var(--teal)}
+  .spacer{flex:1}
+  header button{font-family:var(--body);font-size:12.5px;padding:6px 12px;border:1px solid var(--hair);background:transparent;color:var(--ink);border-radius:6px;cursor:pointer}
+  header button:hover{border-color:var(--teal);color:var(--teal)}
+  header button.danger:hover{border-color:var(--danger);color:var(--danger)}
+  .tab-toggle{display:none}
+
+  /* ---------- panes ---------- */
+  main{flex:1;display:flex;min-height:0}
+  #chatPane{flex:1.4;display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--hair)}
+  #chatLog{flex:1;overflow-y:auto;padding:26px 30px;display:flex;flex-direction:column;gap:16px}
+  .msg{max-width:78%;line-height:1.5;font-size:14.5px}
+  .msg .who{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+  .msg.user{align-self:flex-end}
+  .msg.user .who{text-align:right}
+  .msg.user .bubble{background:var(--teal-soft);border:1px solid #CBDDD7;border-radius:12px 12px 3px 12px;padding:10px 14px}
+  .msg.agent .bubble{background:#fff;border:1px solid var(--hair);border-radius:12px 12px 12px 3px;padding:10px 14px}
+  .msg .recall{margin-top:6px;font-family:var(--mono);font-size:10.5px;color:var(--teal)}
+  .sys{align-self:center;font-family:var(--mono);font-size:11px;color:var(--muted);border:1px dashed var(--hair);border-radius:6px;padding:4px 10px}
+
+  #composer{display:flex;gap:10px;padding:14px 20px;border-top:1px solid var(--hair);flex-shrink:0}
+  #composer textarea{flex:1;resize:none;font-family:var(--body);font-size:14.5px;padding:11px 13px;border:1px solid var(--hair);border-radius:9px;background:#fff;color:var(--ink);height:46px;outline:none}
+  #composer textarea:focus{border-color:var(--teal)}
+  #composer button{font-family:var(--display);font-weight:500;font-size:14px;padding:0 22px;background:var(--teal);color:#fff;border:none;border-radius:9px;cursor:pointer}
+  #composer button:disabled{opacity:.5;cursor:default}
+
+  /* ---------- inspector ---------- */
+  #inspector{flex:1;background:var(--bench);color:var(--dim);overflow-y:auto;padding:20px 18px;display:flex;flex-direction:column;gap:18px;min-width:330px}
+  .con-section h2{font-family:var(--mono);font-size:10.5px;font-weight:400;letter-spacing:.18em;color:var(--amber);margin-bottom:9px;display:flex;justify-content:space-between}
+  .con-section h2 .metric{color:var(--dim)}
+  .card{background:var(--panel);border:1px solid var(--panel-hair);border-radius:8px;padding:9px 11px;margin-bottom:7px;font-size:12px;line-height:1.45}
+  .card .txt{color:#C9D2CD;font-family:var(--mono);font-size:11.5px;word-break:break-word}
+  .card .meta{margin-top:6px;font-family:var(--mono);font-size:10px;color:var(--dim);display:flex;gap:10px;flex-wrap:wrap}
+  .slotgrid{display:flex;gap:5px;margin-bottom:8px}
+  .slot{flex:1;height:6px;border-radius:3px;background:var(--panel-hair)}
+  .slot.full{background:var(--amber)}
+  .bar{height:5px;border-radius:3px;background:var(--panel-hair);margin-top:5px;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--trace)}
+  .bar.composite i{background:var(--amber)}
+  .scorelabels{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9.5px;color:var(--dim);margin-top:3px}
+  #eventLog .card{padding:6px 10px;font-family:var(--mono);font-size:10.5px;color:var(--dim)}
+  #eventLog .card b{color:var(--trace);font-weight:400}
+  .empty{font-family:var(--mono);font-size:11px;color:var(--dim);opacity:.7;padding:4px 2px}
+
+  @media (max-width:820px){
+    .tab-toggle{display:inline-block}
+    #inspector{display:none;min-width:0}
+    body.show-inspector #inspector{display:flex}
+    body.show-inspector #chatPane{display:none}
+    .msg{max-width:92%}
+  }
+  @media (prefers-reduced-motion:no-preference){
+    .card{animation:fade .25s ease}
+    @keyframes fade{from{opacity:0;transform:translateY(3px)}to{opacity:1}}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wordmark">ENGRAM<span>.</span></div>
+  <div class="status" id="statusPill">detecting…</div>
+  <div class="spacer"></div>
+  <button class="tab-toggle" onclick="document.body.classList.toggle('show-inspector')">Memory</button>
+  <button onclick="Engram.newSession()">New session</button>
+  <button onclick="Engram.exportState()">Export</button>
+  <button onclick="document.getElementById('importFile').click()">Import</button>
+  <button class="danger" onclick="Engram.clearAll()">Clear memory</button>
+  <input type="file" id="importFile" accept=".json" style="display:none" onchange="Engram.importState(this)">
+</header>
+
+<main>
+  <section id="chatPane">
+    <div id="chatLog"></div>
+    <div id="composer">
+      <textarea id="input" placeholder="Say something — try telling Engram a fact, then ask about it in a later session…"></textarea>
+      <button id="sendBtn" onclick="Engram.send()">Send</button>
+    </div>
+  </section>
+
+  <aside id="inspector">
+    <div class="con-section">
+      <h2>SHORT-TERM BUFFER <span class="metric" id="bufMetric">0 / 8</span></h2>
+      <div class="slotgrid" id="bufSlots"></div>
+      <div id="bufList"></div>
+    </div>
+    <div class="con-section">
+      <h2>COMPRESSED CONTEXT <span class="metric" id="epMetric">0 episodes</span></h2>
+      <div id="epList"><div class="empty">No compression events yet.</div></div>
+    </div>
+    <div class="con-section">
+      <h2>LONG-TERM STORE <span class="metric" id="ltmMetric">0 items</span></h2>
+      <div id="ltmList"><div class="empty">Nothing consolidated yet.</div></div>
+    </div>
+    <div class="con-section">
+      <h2>EVENT LOG</h2>
+      <div id="eventLog"></div>
+    </div>
+  </aside>
+</main>
+
+<script>
+/* =====================================================================
+   ENGRAM — memory-enabled conversational agent (single file, no build)
+   Pipeline: ingest → importance → buffer → (compress) → embed → store
+             query → retrieve (relevance score) → assemble → respond
+   ===================================================================== */
+
+/* ---------- 1. Storage adapter (cross-session sync) ----------------- */
+const Store = {
+  KEY: 'engram-state-v1',
+  mode: 'memory', _mem: null,
+  async load(){
+    // Claude artifact persistent storage
+    try{
+      if (window.storage){
+        this.mode='claude';
+        try{ const r = await window.storage.get(this.KEY);
+             return r ? JSON.parse(r.value) : null; }
+        catch(e){ return null; } // key doesn't exist yet
+      }
+    }catch(e){}
+    // Local file / self-hosted
+    try{
+      const s = localStorage.getItem(this.KEY);
+      this.mode='local';
+      return s ? JSON.parse(s) : null;
+    }catch(e){}
+    this.mode='memory';
+    return this._mem;
+  },
+  async save(state){
+    const json = JSON.stringify(state);
+    try{ if (this.mode==='claude'){ await window.storage.set(this.KEY, json); return; } }catch(e){}
+    try{ if (this.mode==='local'){ localStorage.setItem(this.KEY, json); return; } }catch(e){}
+    this._mem = state;
+  }
+};
+
+/* ---------- 2. Embedder (hashed n-gram vectors, offline) ------------ */
+const Embed = {
+  DIM: 384,
+  STOP: new Set('a an and are as at be but by for from has have i in is it its my of on or that the this to was we with you your'.split(' ')),
+  tokens(text){
+    return text.toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/)
+               .filter(t => t && !this.STOP.has(t));
+  },
+  hash(s){ let h=2166136261; for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);} return (h>>>0); },
+  vec(text){
+    const v = new Float32Array(this.DIM), toks = this.tokens(text);
+    for (let i=0;i<toks.length;i++){
+      const h1 = this.hash(toks[i]);
+      v[h1 % this.DIM] += 1;                       // unigram
+      v[(h1>>>13) % this.DIM] += 0.5;              // second projection (reduces collisions)
+      if (i>0){                                     // bigram, lower weight
+        const h2 = this.hash(toks[i-1]+'_'+toks[i]);
+        v[h2 % this.DIM] += 0.6;
+      }
+    }
+    let n=0; for(const x of v) n+=x*x; n=Math.sqrt(n)||1;
+    for(let i=0;i<v.length;i++) v[i]/=n;
+    return Array.from(v);
+  },
+  cos(a,b){ let s=0; for(let i=0;i<a.length;i++) s+=a[i]*b[i]; return Math.max(0,s); }
+};
+
+/* ---------- 3. Relevance scoring ------------------------------------ */
+const Score = {
+  W: { sim:0.60, rec:0.25, imp:0.15 },
+  HALF_LIFE_DAYS: 14,
+  recency(ts){
+    const days = (Date.now()-ts)/86400000;
+    return Math.exp(-Math.LN2 * days / this.HALF_LIFE_DAYS);
+  },
+  composite(qVec, item){
+    const sim = Embed.cos(qVec, item.vec);
+    const rec = this.recency(item.ts);
+    return { sim, rec, imp:item.importance,
+             total: this.W.sim*sim + this.W.rec*rec + this.W.imp*item.importance };
+  },
+  // Write-time importance heuristic (0..1)
+  importance(text){
+    let s = 0.30;
+    if (/\b(my name|i am|i'm|i work|i live|i like|i love|i prefer|i have|call me|my \w+ is)\b/i.test(text)) s += 0.25;
+    if (/\bremember\b/i.test(text)) s += 0.20;
+    if (/\d/.test(text)) s += 0.05;
+    if ((text.match(/\b[A-Z][a-z]+/g)||[]).length > 1) s += 0.10; // proper nouns
+    return Math.min(1, s);
+  }
+};
+
+/* ---------- 4. Compression ------------------------------------------ */
+const Compress = {
+  // Extractive fallback: keep highest-signal sentences from evicted turns
+  extractive(turns){
+    const text = turns.map(t=>`${t.role==='user'?'User':'Agent'}: ${t.text}`).join(' ');
+    const sents = text.split(/(?<=[.!?])\s+/).filter(s=>s.length>8);
+    const freq = {};
+    for (const s of sents) for (const t of Embed.tokens(s)) freq[t]=(freq[t]||0)+1;
+    const ranked = sents.map(s=>{
+      const toks = Embed.tokens(s);
+      const score = toks.reduce((a,t)=>a+(freq[t]||0),0)/Math.sqrt(toks.length||1);
+      return {s, score};
+    }).sort((a,b)=>b.score-a.score);
+    return ranked.slice(0,3).map(r=>r.s).join(' ');
+  },
+  async summarize(turns, useApi){
+    if (useApi){
+      try{
+        const convo = turns.map(t=>`${t.role}: ${t.text}`).join('\n');
+        const r = await Claude.complete(
+          `Compress this conversation fragment into 1-2 sentences preserving every durable fact about the user (names, preferences, plans, numbers). Respond with only the summary.\n\n${convo}`);
+        if (r) return r.trim();
+      }catch(e){}
+    }
+    return this.extractive(turns);
+  }
+};
+
+/* ---------- 5. Claude API client (optional, auto-detected) ---------- */
+const Claude = {
+  available: null,
+  async complete(prompt, system){
+    const body = { model:'claude-sonnet-4-6', max_tokens:1000,
+                   messages:[{role:'user', content:prompt}] };
+    if (system) body.system = system;
+    const res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)});
+    if (!res.ok) throw new Error('api '+res.status);
+    const data = await res.json();
+    return data.content.filter(c=>c.type==='text').map(c=>c.text).join('\n');
+  },
+  async chat(system, messages){
+    const res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({model:'claude-sonnet-4-6', max_tokens:1000, system, messages})});
+    if (!res.ok) throw new Error('api '+res.status);
+    const data = await res.json();
+    return data.content.filter(c=>c.type==='text').map(c=>c.text).join('\n');
+  },
+  async detect(){
+    try{ await this.complete('Reply with the single word: ok'); this.available = true; }
+    catch(e){ this.available = false; }
+    return this.available;
+  }
+};
+
+/* ---------- 6. Offline responder (rule-based fallback) -------------- */
+const Offline = {
+  respond(userText, retrieved, episodes){
+    const q = userText.toLowerCase();
+    // recall-style questions → answer from best memory
+    if (/\b(what|who|where|when|do you (remember|know)|did i|my)\b/.test(q) && retrieved.length){
+      const best = retrieved[0];
+      return `Here's what I have on that — ${best.item.text}` +
+             (retrieved.length>1 ? ` (I also recalled ${retrieved.length-1} related item${retrieved.length>2?'s':''}.)` : '');
+    }
+    if (retrieved.length)
+      return `Noted. That connects to something I remember: "${retrieved[0].item.text}". Tell me more, or ask me to recall anything from a past session.`;
+    if (/\b(hi|hello|hey)\b/.test(q))
+      return `Hello. I'm running in offline mode — rule-based responses, but the full memory pipeline (buffer, compression, vector recall) is live. Tell me something worth remembering.`;
+    return `Stored and indexed. I don't have related long-term memories yet — keep talking and watch the console on the right consolidate what matters.`;
+  }
+};
+
+/* ---------- 7. Agent core ------------------------------------------- */
+const Engram = {
+  BUF_MAX: 8, EVICT: 4, TOP_K: 4, MIN_SCORE: 0.22, LTM_WRITE_MIN: 0.45,
+  state: null, busy:false,
+
+  async init(){
+    const saved = await Store.load();
+    this.state = saved || { ltm:[], episodes:[], sessions:0, log:[] };
+    this.state.sessions += 1;
+    this.buffer = [];                       // short-term, per-session
+    this.sessionId = this.state.sessions;
+    await Store.save(this.state);
+
+    const api = await Claude.detect();
+    const pill = document.getElementById('statusPill');
+    pill.textContent = (api ? 'CLAUDE API' : 'OFFLINE MODE') + ' · ' + Store.mode.toUpperCase() + ' STORE' + ' · S' + this.sessionId;
+    pill.classList.toggle('live', api);
+
+    this.sysMsg(`Session ${this.sessionId} started · ${this.state.ltm.length} long-term memories loaded`);
+    if (this.state.ltm.length){
+      this.log(`sync`, `restored ${this.state.ltm.length} LTM items + ${this.state.episodes.length} episodes from ${Store.mode} store`);
+    }
+    this.render();
+  },
+
+  /* ----- main turn loop ----- */
+  async send(){
+    if (this.busy) return;
+    const el = document.getElementById('input');
+    const text = el.value.trim();
+    if (!text) return;
+    el.value=''; this.busy=true; document.getElementById('sendBtn').disabled=true;
+
+    this.addMsg('user', text);
+    this.buffer.push({role:'user', text, ts:Date.now()});
+
+    // 1. retrieval — score every LTM item against the query
+    const qVec = Embed.vec(text);
+    const scored = this.state.ltm.map(item => ({item, s:Score.composite(qVec,item)}))
+                                 .sort((a,b)=>b.s.total-a.s.total);
+    const retrieved = scored.filter(x=>x.s.total >= this.MIN_SCORE).slice(0,this.TOP_K);
+    retrieved.forEach(r=>{ r.item.hits=(r.item.hits||0)+1; r.item.lastScore=r.s; });
+    if (retrieved.length) this.log('recall', `${retrieved.length} item(s), top score ${retrieved[0].s.total.toFixed(2)}`);
+
+    // 2. respond
+    let reply;
+    if (Claude.available){
+      const system = this.assembleSystem(retrieved);
+      const messages = this.buffer.slice(-this.BUF_MAX).map(t=>({role:t.role==='agent'?'assistant':'user', content:t.text}));
+      try{ reply = await Claude.chat(system, messages); }
+      catch(e){ reply = Offline.respond(text, retrieved, this.state.episodes); }
+    } else {
+      reply = Offline.respond(text, retrieved, this.state.episodes);
+    }
+    this.addMsg('agent', reply, retrieved);
+    this.buffer.push({role:'agent', text:reply, ts:Date.now()});
+
+    // 3. write policy — consolidate salient user turns into LTM
+    const imp = Score.importance(text);
+    if (imp >= this.LTM_WRITE_MIN){
+      this.writeLTM(text, imp, 'fact');
+      this.log('write', `importance ${imp.toFixed(2)} → consolidated to LTM`);
+    }
+
+    // 4. buffer management — compress on overflow
+    if (this.buffer.length > this.BUF_MAX) await this.compressOldest();
+
+    await Store.save(this.state);
+    this.render();
+    this.busy=false; document.getElementById('sendBtn').disabled=false;
+  },
+
+  assembleSystem(retrieved){
+    let s = `You are Engram, a conversational agent with persistent memory across sessions. Be concise and natural. Use memories only when relevant; never invent memories.`;
+    if (this.state.episodes.length)
+      s += `\n\nCompressed context from earlier in this and past conversations:\n` +
+           this.state.episodes.slice(-4).map(e=>`- ${e.text}`).join('\n');
+    if (retrieved.length)
+      s += `\n\nRelevant long-term memories (with relevance scores):\n` +
+           retrieved.map(r=>`- [${r.s.total.toFixed(2)}] ${r.item.text}`).join('\n');
+    return s;
+  },
+
+  writeLTM(text, importance, kind){
+    // dedupe: skip if near-identical memory exists
+    const v = Embed.vec(text);
+    for (const m of this.state.ltm) if (Embed.cos(v,m.vec) > 0.92) return;
+    this.state.ltm.push({ id:Date.now()+Math.random().toString(36).slice(2,6),
+      text, vec:v, ts:Date.now(), importance, kind, session:this.sessionId, hits:0 });
+  },
+
+  async compressOldest(count){
+    const evicted = this.buffer.splice(0, count || this.EVICT);
+    const summary = await Compress.summarize(evicted, Claude.available);
+    const ep = { text:summary, ts:Date.now(), turns:evicted.length, session:this.sessionId };
+    this.state.episodes.push(ep);
+    this.writeLTM(summary, 0.5, 'episode');
+    this.log('compress', `${evicted.length} turns → 1 episode (${summary.length} chars)`);
+    this.sysMsg(`Buffer compressed: ${evicted.length} oldest turns → episode summary`);
+  },
+
+  /* ----- session & state ops ----- */
+  async newSession(){
+    if (this.buffer.length >= 2) await this.compressOldest(this.buffer.length);
+    this.buffer = [];
+    this.state.sessions += 1; this.sessionId = this.state.sessions;
+    await Store.save(this.state);
+    document.getElementById('chatLog').innerHTML='';
+    this.sysMsg(`Session ${this.sessionId} started · buffer cleared, long-term memory persists`);
+    this.log('session', `new session S${this.sessionId}`);
+    const pill=document.getElementById('statusPill');
+    pill.textContent = pill.textContent.replace(/S\d+$/, 'S'+this.sessionId);
+    this.render();
+  },
+  exportState(){
+    const blob = new Blob([JSON.stringify(this.state,null,2)],{type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'engram-memory.json'; a.click();
+    this.log('sync','state exported to JSON');
+  },
+  importState(input){
+    const f = input.files[0]; if(!f) return;
+    const r = new FileReader();
+    r.onload = async ()=>{ try{
+      const incoming = JSON.parse(r.result);
+      // merge: union LTM by id, keep both episode lists
+      const ids = new Set(this.state.ltm.map(m=>m.id));
+      for (const m of (incoming.ltm||[])) if(!ids.has(m.id)) this.state.ltm.push(m);
+      this.state.episodes = [...(this.state.episodes||[]), ...(incoming.episodes||[])].slice(-30);
+      await Store.save(this.state);
+      this.log('sync', `imported & merged — LTM now ${this.state.ltm.length} items`);
+      this.render();
+    }catch(e){ this.sysMsg('Import failed: not a valid Engram export'); } };
+    r.readAsText(f); input.value='';
+  },
+  async clearAll(){
+    if (!confirm('Erase all long-term memory and episodes?')) return;
+    this.state = { ltm:[], episodes:[], sessions:this.sessionId, log:[] };
+    this.buffer = [];
+    await Store.save(this.state);
+    document.getElementById('chatLog').innerHTML='';
+    this.sysMsg('Memory cleared.');
+    this.render();
+  },
+
+  /* ----- UI ----- */
+  addMsg(role, text, retrieved){
+    const log = document.getElementById('chatLog');
+    const d = document.createElement('div');
+    d.className = 'msg '+(role==='user'?'user':'agent');
+    let recall = '';
+    if (retrieved && retrieved.length)
+      recall = `<div class="recall">⟲ recalled ${retrieved.length} memor${retrieved.length>1?'ies':'y'} · top ${retrieved[0].s.total.toFixed(2)}</div>`;
+    d.innerHTML = `<div class="who">${role==='user'?'You':'Engram'}</div><div class="bubble"></div>${recall}`;
+    d.querySelector('.bubble').textContent = text;
+    log.appendChild(d); log.scrollTop = log.scrollHeight;
+  },
+  sysMsg(text){
+    const log = document.getElementById('chatLog');
+    const d = document.createElement('div'); d.className='sys'; d.textContent = text;
+    log.appendChild(d); log.scrollTop = log.scrollHeight;
+  },
+  log(kind, msg){
+    this.state.log.unshift({kind, msg, ts:Date.now()});
+    this.state.log = this.state.log.slice(0,12);
+  },
+  render(){
+    // buffer slots
+    document.getElementById('bufMetric').textContent = `${this.buffer.length} / ${this.BUF_MAX}`;
+    document.getElementById('bufSlots').innerHTML =
+      Array.from({length:this.BUF_MAX},(_,i)=>`<div class="slot ${i<this.buffer.length?'full':''}"></div>`).join('');
+    document.getElementById('bufList').innerHTML = this.buffer.slice(-4).map(t=>
+      `<div class="card"><div class="txt">${esc(t.role==='user'?'▸ ':'◂ ')}${esc(clip(t.text,90))}</div></div>`).join('')
+      || '<div class="empty">Buffer empty.</div>';
+    // episodes
+    document.getElementById('epMetric').textContent = `${this.state.episodes.length} episodes`;
+    document.getElementById('epList').innerHTML = this.state.episodes.slice(-3).reverse().map(e=>
+      `<div class="card"><div class="txt">${esc(clip(e.text,140))}</div>
+       <div class="meta"><span>S${e.session}</span><span>${e.turns} turns</span><span>${ago(e.ts)}</span></div></div>`).join('')
+      || '<div class="empty">No compression events yet.</div>';
+    // LTM sorted by last retrieval score, then recency
+    document.getElementById('ltmMetric').textContent = `${this.state.ltm.length} items`;
+    const sorted = [...this.state.ltm].sort((a,b)=>(b.lastScore?.total||0)-(a.lastScore?.total||0) || b.ts-a.ts);
+    document.getElementById('ltmList').innerHTML = sorted.slice(0,7).map(m=>{
+      const s = m.lastScore;
+      const bars = s ? `
+        <div class="bar composite"><i style="width:${(s.total*100)|0}%"></i></div>
+        <div class="scorelabels"><span>score ${s.total.toFixed(2)}</span><span>sim ${s.sim.toFixed(2)} · rec ${s.rec.toFixed(2)} · imp ${s.imp.toFixed(2)}</span></div>`
+        : `<div class="bar"><i style="width:${(m.importance*100)|0}%"></i></div>
+           <div class="scorelabels"><span>imp ${m.importance.toFixed(2)}</span><span>not yet retrieved</span></div>`;
+      return `<div class="card"><div class="txt">${esc(clip(m.text,110))}</div>${bars}
+        <div class="meta"><span>${m.kind}</span><span>S${m.session}</span><span>${m.hits||0} hits</span><span>${ago(m.ts)}</span></div></div>`;
+    }).join('') || '<div class="empty">Nothing consolidated yet.</div>';
+    // events
+    document.getElementById('eventLog').innerHTML = this.state.log.slice(0,6).map(e=>
+      `<div class="card"><b>${esc(e.kind)}</b> ${esc(e.msg)}</div>`).join('')
+      || '<div class="empty">Quiet so far.</div>';
+  }
+};
+
+/* ---------- helpers ---------- */
+function esc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+function clip(s,n){ return s.length>n ? s.slice(0,n-1)+'…' : s; }
+function ago(ts){ const m=(Date.now()-ts)/60000;
+  if(m<1) return 'now'; if(m<60) return (m|0)+'m'; const h=m/60;
+  if(h<24) return (h|0)+'h'; return ((h/24)|0)+'d'; }
+
+document.getElementById('input').addEventListener('keydown', e=>{
+  if (e.key==='Enter' && !e.shiftKey){ e.preventDefault(); Engram.send(); }
+});
+Engram.init();
+</script>
+</body>
+</html>
