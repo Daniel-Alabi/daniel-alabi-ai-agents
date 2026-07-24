@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Holdpoint — Human-in-the-Loop Approval Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#D9DDE2;
+  --panel:#F4F5F7;
+  --panel-2:#EBEDF0;
+  --ink:#18222C;
+  --muted:#5A6673;
+  --line:#C3C9D0;
+  --hold:#B96A00;
+  --hold-bg:#F8E9CF;
+  --hold-deep:#8A4E00;
+  --ok:#1E6E45;
+  --ok-bg:#DDEEE4;
+  --run:#245F9E;
+  --run-bg:#DEE9F4;
+  --bad:#A63A2E;
+  --bad-bg:#F3DFDC;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --sans:'Archivo',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{font-size:15px}
+body{font-family:var(--sans);background:var(--bg);color:var(--ink);line-height:1.5;min-height:100vh}
+button{font-family:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--run);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* ---------- header ---------- */
+header{background:var(--ink);color:#E9EDF1;padding:0}
+.hd-top{display:flex;align-items:center;gap:14px;padding:14px 22px;flex-wrap:wrap}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand h1{font-size:1.25rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+.brand h1 .pt{color:#F2A93B}
+.brand .sub{font-family:var(--mono);font-size:.68rem;color:#9AA6B2;letter-spacing:.06em}
+.hd-controls{display:flex;align-items:center;gap:16px;margin-left:auto;flex-wrap:wrap}
+.ctl{display:flex;flex-direction:column;gap:3px}
+.ctl label{font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:#8E9AA6}
+.seg{display:flex;border:1px solid #3A4652;border-radius:6px;overflow:hidden}
+.seg button{background:transparent;color:#B9C3CD;border:none;padding:6px 12px;font-size:.78rem;font-weight:600}
+.seg button.on{background:#E9EDF1;color:var(--ink)}
+select,input[type=text],input[type=password],textarea{
+  font-family:inherit;font-size:.82rem;border:1px solid var(--line);border-radius:6px;
+  padding:7px 9px;background:#fff;color:var(--ink)}
+header select{background:#232E3A;color:#E9EDF1;border-color:#3A4652}
+.thresh{display:flex;align-items:center;gap:8px}
+.thresh input[type=range]{width:110px;accent-color:#F2A93B}
+.thresh .tval{font-family:var(--mono);font-size:.8rem;color:#F2A93B;width:38px;font-weight:600}
+.runbtn{background:#F2A93B;color:#231A08;border:none;border-radius:6px;padding:9px 20px;
+  font-weight:800;font-size:.82rem;letter-spacing:.08em;text-transform:uppercase}
+.runbtn:disabled{opacity:.45;cursor:not-allowed}
+.hd-task{display:none;padding:0 22px 14px;gap:10px}
+.hd-task.show{display:flex;flex-wrap:wrap}
+.hd-task input{flex:1;min-width:220px;background:#232E3A;color:#E9EDF1;border-color:#3A4652}
+
+/* ---------- layout ---------- */
+.wrap{display:grid;grid-template-columns:270px 1fr 360px;gap:16px;padding:16px 22px 32px;max-width:1500px;margin:0 auto}
+@media(max-width:1080px){.wrap{grid-template-columns:240px 1fr}.audit-col{grid-column:1/-1}}
+@media(max-width:760px){.wrap{grid-template-columns:1fr;padding:12px}.hd-controls{margin-left:0}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px}
+.panel-hd{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.panel-hd h2{font-size:.72rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.panel-hd .spacer{flex:1}
+
+/* ---------- pipeline ---------- */
+.steps{list-style:none;padding:8px}
+.step{display:flex;gap:10px;padding:9px 8px;border-radius:6px;align-items:flex-start}
+.step+.step{margin-top:2px}
+.step .dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);background:#fff;
+  flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);
+  font-size:.62rem;font-weight:600;color:var(--muted);margin-top:1px}
+.step .nm{font-size:.82rem;font-weight:600;line-height:1.3}
+.step .st{font-family:var(--mono);font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.step.running{background:var(--run-bg)}
+.step.running .dot{border-color:var(--run);color:var(--run)}
+.step.running .st{color:var(--run)}
+.step.done .dot{background:var(--ok);border-color:var(--ok);color:#fff}
+.step.done .st{color:var(--ok)}
+.step.hold{background:var(--hold-bg)}
+.step.hold .dot{background:var(--hold);border-color:var(--hold);color:#fff}
+.step.hold .st{color:var(--hold-deep);font-weight:600}
+.step.revised .dot{border-color:var(--hold);color:var(--hold)}
+.empty{padding:26px 16px;color:var(--muted);font-size:.82rem}
+.empty code{font-family:var(--mono);font-size:.75rem;background:var(--panel-2);padding:1px 5px;border-radius:4px}
+
+/* ---------- workbench ---------- */
+.bench{display:flex;flex-direction:column;gap:16px}
+.card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.card .eyebrow{font-family:var(--mono);font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;display:flex;gap:8px;align-items:center}
+.card h3{font-size:.95rem;font-weight:700;margin-bottom:6px}
+.card .out{font-size:.85rem;white-space:pre-wrap}
+.confbar{display:flex;align-items:center;gap:10px;margin-top:10px}
+.confbar .track{flex:1;height:8px;background:var(--panel-2);border-radius:4px;overflow:hidden;position:relative}
+.confbar .fill{height:100%;border-radius:4px;background:var(--ok);transition:width .4s}
+.confbar .fill.low{background:var(--hold)}
+.confbar .tick{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink);opacity:.55}
+.confbar .cv{font-family:var(--mono);font-size:.78rem;font-weight:600;width:44px;text-align:right}
+.chip{font-family:var(--mono);font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;
+  padding:2px 8px;border-radius:4px;font-weight:600}
+.chip.ok{background:var(--ok-bg);color:var(--ok)}
+.chip.hold{background:var(--hold-bg);color:var(--hold-deep)}
+.chip.run{background:var(--run-bg);color:var(--run)}
+.chip.bad{background:var(--bad-bg);color:var(--bad)}
+.chip.human{background:var(--panel-2);color:var(--ink)}
+
+/* ---------- the hold card (signature) ---------- */
+.holdcard{background:#fff;border:1px solid var(--hold);border-radius:8px;overflow:hidden;
+  box-shadow:0 6px 24px rgba(138,78,0,.14)}
+.holdcard .tape{height:14px;background:repeating-linear-gradient(-45deg,
+  #F2A93B 0,#F2A93B 14px,var(--ink) 14px,var(--ink) 28px)}
+.holdcard .inner{padding:16px 18px}
+.holdstamp{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.holdstamp .stamp{border:3px solid var(--hold);color:var(--hold-deep);border-radius:6px;
+  font-weight:800;letter-spacing:.18em;padding:4px 12px;font-size:.95rem;transform:rotate(-2deg)}
+.holdstamp .why{font-size:.78rem;color:var(--muted)}
+.uncertain{background:var(--hold-bg);border-radius:6px;padding:10px 12px;margin:10px 0}
+.uncertain h4{font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--hold-deep);margin-bottom:6px}
+.uncertain ul{padding-left:18px;font-size:.83rem}
+.proposed{border-left:3px solid var(--run);padding:6px 12px;margin:10px 0;font-size:.85rem}
+.proposed b{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--run);display:block;margin-bottom:2px}
+.hactions{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.hrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.hactions textarea{width:100%;min-height:58px;resize:vertical;font-size:.83rem}
+.abtn{border:none;border-radius:6px;padding:9px 16px;font-weight:700;font-size:.8rem;letter-spacing:.04em}
+.abtn.approve{background:var(--ok);color:#fff}
+.abtn.guide{background:var(--run);color:#fff}
+.abtn.reject{background:#fff;color:var(--bad);border:1.5px solid var(--bad)}
+.init{width:110px;font-family:var(--mono)}
+.hnote{font-size:.72rem;color:var(--muted)}
+
+/* ---------- audit ---------- */
+.audit-col .panel{position:sticky;top:14px;max-height:calc(100vh - 30px);display:flex;flex-direction:column}
+.logbox{overflow-y:auto;padding:10px 12px;font-family:var(--mono);font-size:.72rem;flex:1}
+.log-entry{padding:7px 8px;border-radius:5px;margin-bottom:4px;background:#fff;border:1px solid var(--panel-2)}
+.log-entry .l1{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.log-entry .seq{color:var(--muted)}
+.log-entry .actor{font-weight:600;padding:0 5px;border-radius:3px}
+.log-entry .actor.AGENT{background:var(--run-bg);color:var(--run)}
+.log-entry .actor.HUMAN{background:var(--hold-bg);color:var(--hold-deep)}
+.log-entry .actor.SYSTEM{background:var(--panel-2);color:var(--muted)}
+.log-entry .ev{font-weight:600}
+.log-entry .det{color:var(--muted);margin-top:2px;word-break:break-word}
+.log-entry .hash{color:#9AA6B2;font-size:.62rem;margin-top:2px}
+.mini{background:none;border:1px solid var(--line);border-radius:5px;padding:4px 10px;font-size:.68rem;font-family:var(--mono);color:var(--ink)}
+.verify-ok{color:var(--ok);font-weight:600}
+.verify-bad{color:var(--bad);font-weight:600}
+.summary{padding:10px 14px;border-top:1px solid var(--line);font-size:.75rem;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap}
+.summary b{color:var(--ink);font-family:var(--mono)}
+.banner{display:none;margin:0 0 0;padding:10px 14px;border-radius:8px;font-size:.83rem;font-weight:600}
+.banner.show{display:block}
+.banner.ok{background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hd-top">
+    <div class="brand">
+      <h1>Hold<span class="pt">point</span></h1>
+      <span class="sub">human-in-the-loop approval agent · v1.0</span>
+    </div>
+    <div class="hd-controls">
+      <div class="ctl">
+        <label for="engineSim">Engine</label>
+        <div class="seg" role="group" aria-label="Engine">
+          <button id="engineSim" class="on">Simulated</button>
+          <button id="engineApi">Claude API</button>
+        </div>
+      </div>
+      <div class="ctl" id="scenarioCtl">
+        <label for="scenario">Scenario</label>
+        <select id="scenario">
+          <option value="scada">SCADA alarm triage</option>
+          <option value="interconnect">Interconnection screening</option>
+          <option value="invoice">Invoice exception review</option>
+        </select>
+      </div>
+      <div class="ctl">
+        <label for="thresh">Approval threshold</label>
+        <div class="thresh">
+          <input type="range" id="thresh" min="50" max="95" value="75" step="5">
+          <span class="tval" id="threshVal">75%</span>
+        </div>
+      </div>
+      <button class="runbtn" id="runBtn">Run task</button>
+    </div>
+  </div>
+  <div class="hd-task" id="taskRow">
+    <input type="text" id="taskInput" placeholder="Describe a task for the agent, e.g. 'Draft a maintenance outage plan for a 34.5 kV feeder'">
+  </div>
+</header>
+
+<div class="wrap">
+  <!-- pipeline -->
+  <aside class="panel">
+    <div class="panel-hd"><h2>Task pipeline</h2></div>
+    <ol class="steps" id="stepsList">
+      <li class="empty">No run yet. Pick a scenario and press <code>Run task</code>. The agent pauses at any step whose confidence falls below the approval threshold.</li>
+    </ol>
+  </aside>
+
+  <!-- workbench -->
+  <main class="bench" id="bench">
+    <div class="banner ok" id="doneBanner"></div>
+    <div class="card" id="introCard">
+      <div class="eyebrow">How it works</div>
+      <h3>Uncertainty detection → hold → human sign-off → resume</h3>
+      <p class="out">The agent executes each step and self-scores its confidence. Any step below the approval threshold raises a hold point: execution stops, the agent states exactly what it is unsure about and what it proposes to do, and waits. You can approve as proposed, approve with guidance (your note is injected into the agent's working context for all downstream steps), or reject and force a revision. Every event — agent, human, or system — is written to a tamper-evident, hash-chained audit trail you can verify and export.</p>
+    </div>
+  </main>
+
+  <!-- audit -->
+  <div class="audit-col">
+    <div class="panel">
+      <div class="panel-hd">
+        <h2>Audit trail</h2>
+        <span class="spacer"></span>
+        <button class="mini" id="verifyBtn">Verify chain</button>
+        <button class="mini" id="exportBtn">Export JSON</button>
+      </div>
+      <div class="logbox" id="logBox"></div>
+      <div class="summary" id="logSummary">
+        <span>events <b id="cntEv">0</b></span>
+        <span>holds <b id="cntHold">0</b></span>
+        <span>human actions <b id="cntHuman">0</b></span>
+        <span id="verifyOut"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ================= state ================= */
+const S = {
+  engine: "sim",           // sim | api
+  running: false,
+  steps: [],               // {name, status, conf, output}
+  context: [],             // validated human context notes
+  audit: [],               // hash-chained entries
+  holds: 0, humanActs: 0,
+  pendingResolve: null,
+};
+
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const now = () => new Date().toISOString();
+
+/* ================= hash chain ================= */
+function djb2(str){let h=5381;for(let i=0;i<str.length;i++){h=((h<<5)+h+str.charCodeAt(i))>>>0;}return h.toString(16).padStart(8,"0");}
+function logEvent(actor, event, detail){
+  const prev = S.audit.length ? S.audit[S.audit.length-1].hash : "GENESIS0";
+  const core = {seq:S.audit.length+1, ts:now(), actor, event, detail};
+  const hash = djb2(prev + JSON.stringify(core));
+  const entry = {...core, prev, hash};
+  S.audit.push(entry);
+  if(actor==="HUMAN") S.humanActs++;
+  if(event==="HOLD_RAISED") S.holds++;
+  renderLogEntry(entry);
+  $("cntEv").textContent = S.audit.length;
+  $("cntHold").textContent = S.holds;
+  $("cntHuman").textContent = S.humanActs;
+}
+function verifyChain(){
+  let prev="GENESIS0";
+  for(const e of S.audit){
+    const core={seq:e.seq,ts:e.ts,actor:e.actor,event:e.event,detail:e.detail};
+    if(e.prev!==prev || djb2(prev+JSON.stringify(core))!==e.hash) return e.seq;
+    prev=e.hash;
+  }
+  return 0;
+}
+
+/* ================= scenarios (offline engine) ================= */
+const SCENARIOS = {
+scada: {
+  title:"SCADA alarm triage",
+  steps:[
+   {name:"Ingest alarm batch", conf:.96,
+    out:"Parsed 47 alarms from the historian export (00:00–06:00). Deduplicated chattering points to 12 unique tags across 3 substations."},
+   {name:"Classify severity", conf:.91,
+    out:"Classified 12 tags: 2 critical (XFMR-2 TEMP-HI, TT-204 RATE-OF-CHANGE), 4 warning, 6 informational. Critical alarms share a 4-minute onset window."},
+   {name:"Root-cause hypothesis", conf:.58,
+    out:"Correlation suggests a common cause, but two hypotheses fit the data equally well.",
+    unsure:["Transformer cooling fault (XFMR-2 fan bank) and instrument drift on TT-204 both explain the temperature signature.",
+            "No recent calibration record found for TT-204 — data quality is unverifiable from historian alone.",
+            "Recommending a switching action on the wrong hypothesis risks an unnecessary outage."],
+    proposal:"Hold any switching recommendation. Request field verification of TT-204 and a visual check of the XFMR-2 fan bank before proceeding."},
+   {name:"Recommend response actions", conf:.87, usesContext:true,
+    out:"Response plan: (1) dispatch field tech per validated guidance, (2) place XFMR-2 on 15-min watch with manual temperature log, (3) defer switching until sensor integrity is confirmed, (4) pre-stage the isolation procedure in case readings are confirmed."},
+   {name:"Draft operator notification", conf:.90, usesContext:true,
+    out:"Drafted shift-handoff notice: summary of the alarm cluster, current hypothesis status, watch instructions, and the human-validated verification actions with owner and due time."},
+   {name:"Compile incident report", conf:.94,
+    out:"Compiled the triage report: timeline, classification table, hypothesis analysis, human sign-off record, and response plan. Ready for review."}
+]},
+interconnect: {
+  title:"Interconnection screening",
+  steps:[
+   {name:"Parse application & queue data", conf:.94,
+    out:"Parsed the interconnection application: 4.5 MW solar + 2 MWh BESS at feeder F-118. Queue position and prior study results loaded."},
+   {name:"Screen hosting capacity", conf:.89,
+    out:"Published hosting-capacity map shows 5.1 MW headroom at the POI node — nominally passes the capacity screen."},
+   {name:"Assess thermal & voltage risk", conf:.62,
+    out:"Preliminary screen passes, but model confidence is low.",
+    unsure:["Feeder model vintage is unknown — the hosting map may predate two recent 1 MW additions on F-118.",
+            "Load profile on file is 3 years old; reverse-flow hours may be understated.",
+            "A false pass here propagates into the cost estimate and the customer commitment."],
+    proposal:"Flag the screen as provisional. Request the utility's current feeder model date and most recent SCADA load profile before certifying the result."},
+   {name:"Estimate upgrade cost exposure", conf:.85, usesContext:true,
+    out:"Cost exposure estimated with the validated model assumptions: base case $0 (screen passes), sensitivity case $180–320k if reverse-flow limits bind at the substation LTC."},
+   {name:"Draft screening memo", conf:.92, usesContext:true,
+    out:"Screening memo drafted: screen results, data-vintage caveats as validated, cost sensitivity, human sign-off record, and recommended next study step."}
+]},
+invoice: {
+  title:"Invoice exception review",
+  steps:[
+   {name:"Extract invoice fields", conf:.95,
+    out:"Extracted from INV-20993 (Meridian Instruments): $12,840.00, net-30, 3 line items, referenced PO-4471."},
+   {name:"Match against purchase order", conf:.66,
+    out:"PO match is partial and ambiguous.",
+    unsure:["Invoice total $12,840 vs PO-4471 open amount $11,900 — a $940 discrepancy.",
+            "Line 3 ('field calibration service') does not appear on the PO; could be a change order or an unauthorized add.",
+            "Vendor has one prior discrepancy in the last 12 months."],
+    proposal:"Do not auto-approve. Route to the PO owner to confirm whether the calibration service was a verbal change order before applying policy."},
+   {name:"Apply approval policy", conf:.88, usesContext:true,
+    out:"Policy applied with validated context: discrepancy disposition recorded, approval tier determined, and the exception coded per the human decision."},
+   {name:"Post decision & notify AP", conf:.93,
+    out:"Decision posted to the AP queue with the full exception narrative, sign-off record, and audit reference. Vendor notification drafted."}
+]}
+};
+
+/* ================= rendering ================= */
+function renderSteps(){
+  const ol=$("stepsList"); ol.innerHTML="";
+  S.steps.forEach((st,i)=>{
+    const li=document.createElement("li");
+    li.className="step "+st.status;
+    const lab={queued:"queued",running:"running…",done:"done "+pct(st.conf),hold:"HOLD "+pct(st.conf),revised:"revised "+pct(st.conf)}[st.status]||st.status;
+    li.innerHTML=`<div class="dot">${i+1}</div><div><div class="nm">${esc(st.name)}</div><div class="st">${lab}</div></div>`;
+    ol.appendChild(li);
+  });
+}
+function pct(c){return c==null?"":Math.round(c*100)+"%";}
+function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+function stepCard(st, idx){
+  const low = st.conf < threshold();
+  return `<div class="card">
+    <div class="eyebrow">Step ${idx+1} · agent output <span class="chip ${low?'hold':'ok'}">${low?'below threshold':'cleared'}</span></div>
+    <h3>${esc(st.name)}</h3>
+    <div class="out">${esc(st.output)}</div>
+    <div class="confbar">
+      <div class="track"><div class="fill ${low?'low':''}" style="width:${st.conf*100}%"></div>
+        <div class="tick" style="left:${threshold()*100}%"></div></div>
+      <span class="cv">${pct(st.conf)}</span>
+    </div>
+  </div>`;
+}
+
+function renderLogEntry(e){
+  const d=document.createElement("div");
+  d.className="log-entry";
+  d.innerHTML=`<div class="l1"><span class="seq">#${String(e.seq).padStart(3,"0")}</span>
+    <span class="actor ${e.actor}">${e.actor}</span>
+    <span class="ev">${esc(e.event)}</span></div>
+    <div class="det">${esc(e.detail)}</div>
+    <div class="hash">${e.prev} → ${e.hash} · ${e.ts}</div>`;
+  $("logBox").appendChild(d);
+  $("logBox").scrollTop=$("logBox").scrollHeight;
+}
+
+const threshold = () => Number($("thresh").value)/100;
+
+/* ================= hold point ================= */
+function raiseHold(st, idx){
+  return new Promise(resolve=>{
+    S.pendingResolve=resolve;
+    const bench=$("bench");
+    const card=document.createElement("div");
+    card.className="holdcard"; card.id="holdCard";
+    card.innerHTML=`
+      <div class="tape"></div>
+      <div class="inner">
+        <div class="holdstamp"><span class="stamp">HOLD POINT</span>
+          <span class="why">Step ${idx+1} confidence ${pct(st.conf)} is below your ${Math.round(threshold()*100)}% threshold. Execution is paused pending human sign-off.</span>
+        </div>
+        <h3>${esc(st.name)}</h3>
+        <div class="out">${esc(st.output)}</div>
+        <div class="uncertain"><h4>Agent is uncertain about</h4>
+          <ul>${(st.unsure||["Confidence below threshold."]).map(u=>`<li>${esc(u)}</li>`).join("")}</ul>
+        </div>
+        <div class="proposed"><b>Proposed action</b>${esc(st.proposal||"Proceed as drafted.")}</div>
+        <div class="hactions">
+          <textarea id="humanNote" placeholder="Optional guidance or rejection reason — injected into the agent's working context for all downstream steps."></textarea>
+          <div class="hrow">
+            <input class="init" type="text" id="humanInit" maxlength="12" placeholder="Initials">
+            <button class="abtn approve" id="btnApprove">Approve as proposed</button>
+            <button class="abtn guide" id="btnGuide">Approve with guidance</button>
+            <button class="abtn reject" id="btnReject">Reject &amp; revise</button>
+          </div>
+          <div class="hnote">Approve with guidance requires a note. Reject requires a reason. Your decision, note, and initials are written to the audit trail.</div>
+        </div>
+      </div>`;
+    bench.appendChild(card);
+    card.scrollIntoView({behavior:"smooth",block:"center"});
+
+    const note=()=>card.querySelector("#humanNote").value.trim();
+    const who=()=>card.querySelector("#humanInit").value.trim()||"operator";
+    card.querySelector("#btnApprove").onclick=()=>finish("approve");
+    card.querySelector("#btnGuide").onclick=()=>{
+      if(!note()){card.querySelector("#humanNote").focus();return;}
+      finish("guide");
+    };
+    card.querySelector("#btnReject").onclick=()=>{
+      if(!note()){card.querySelector("#humanNote").focus();return;}
+      finish("reject");
+    };
+    function finish(kind){
+      const payload={kind,note:note(),who:who()};
+      card.remove();
+      resolve(payload);
+    }
+  });
+}
+
+/* ================= offline engine ================= */
+async function runSim(){
+  const sc=SCENARIOS[$("scenario").value];
+  logEvent("SYSTEM","RUN_STARTED",`Scenario: ${sc.title}. Engine: simulated. Threshold: ${Math.round(threshold()*100)}%.`);
+  S.steps=sc.steps.map(s=>({...s,status:"queued",output:s.out}));
+  renderSteps();
+  $("bench").innerHTML='<div class="banner ok" id="doneBanner"></div>';
+
+  for(let i=0;i<S.steps.length;i++){
+    const st=S.steps[i];
+    st.status="running"; renderSteps();
+    logEvent("AGENT","STEP_STARTED",`${i+1}. ${st.name}`);
+    await sleep(700+Math.random()*500);
+
+    // context-aware augmentation
+    if(st.usesContext && S.context.length){
+      st.output = st.out + "\n\nIncorporated validated context: " + S.context[S.context.length-1];
+      st.conf = Math.min(.97, st.conf + .04);
+    }
+    logEvent("AGENT","STEP_OUTPUT",`${st.name} — confidence ${pct(st.conf)}.`);
+
+    if(st.conf < threshold()){
+      st.status="hold"; renderSteps();
+      logEvent("AGENT","HOLD_RAISED",`${st.name}: confidence ${pct(st.conf)} < threshold. ${st.unsure?st.unsure.length+" uncertainty factor(s) declared.":""}`);
+      const dec=await raiseHold(st,i);
+      logEvent("HUMAN", dec.kind==="approve"?"APPROVED":dec.kind==="guide"?"APPROVED_WITH_GUIDANCE":"REJECTED",
+        `${dec.who}: ${dec.note||"approved as proposed"}`);
+      if(dec.kind==="guide"||dec.kind==="reject"){
+        S.context.push(dec.note);
+        logEvent("SYSTEM","CONTEXT_INJECTED",`Validated context added to working memory: "${dec.note}"`);
+      }
+      if(dec.kind==="reject"){
+        await sleep(600);
+        st.output = "Revised per human rejection: " + dec.note + "\n\nOriginal analysis retained in audit trail; recommendation withdrawn and superseded.";
+        st.conf = Math.min(.96, threshold()+.1);
+        st.status="revised";
+        logEvent("AGENT","STEP_REVISED",`${st.name} re-executed with human constraint. New confidence ${pct(st.conf)}.`);
+      } else {
+        if(dec.kind==="guide"){
+          st.output = st.output + "\n\nOperator guidance applied: " + dec.note;
+          st.conf = Math.min(.97, threshold()+.12);
+        }
+        st.status="done";
+        logEvent("SYSTEM","RUN_RESUMED",`Execution resumed at step ${i+1} with human sign-off.`);
+      }
+    } else {
+      st.status="done";
+    }
+    renderSteps();
+    $("bench").insertAdjacentHTML("beforeend", stepCard(st,i));
+  }
+  logEvent("SYSTEM","RUN_COMPLETED",`${S.steps.length} steps. ${S.holds} hold(s), ${S.humanActs} human action(s).`);
+  const b=$("doneBanner");
+  b.textContent=`Run complete — ${S.steps.length} steps, ${S.holds} hold point(s) resolved with human sign-off. Audit chain has ${S.audit.length} entries.`;
+  b.classList.add("show");
+}
+
+/* ================= Claude API engine ================= */
+async function claude(messages, system){
+  const res=await fetch("https://api.anthropic.com/v1/messages",{
+    method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1000,system,messages})
+  });
+  const data=await res.json();
+  const text=(data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n");
+  return JSON.parse(text.replace(/```json|```/g,"").trim());
+}
+
+async function runApi(){
+  const task=$("taskInput").value.trim();
+  if(!task){$("taskInput").focus();return;}
+  logEvent("SYSTEM","RUN_STARTED",`Task: "${task}". Engine: Claude API. Threshold: ${Math.round(threshold()*100)}%.`);
+  $("bench").innerHTML='<div class="banner ok" id="doneBanner"></div><div class="card"><div class="eyebrow">Planning</div><div class="out">Agent is decomposing the task…</div></div>';
+
+  let plan;
+  try{
+    plan=await claude(
+      [{role:"user",content:`Task: ${task}\n\nDecompose into 4-6 sequential steps. Respond ONLY with JSON: {"steps":["step name", ...]}`}],
+      "You are a planning module. Respond only with valid JSON, no markdown, no preamble.");
+  }catch(e){
+    logEvent("SYSTEM","ERROR","Planning call failed: "+e.message);
+    $("bench").insertAdjacentHTML("beforeend",`<div class="card"><div class="eyebrow">Error</div><div class="out">The planning call failed. Check your connection and try again, or switch to the simulated engine.</div></div>`);
+    return;
+  }
+  S.steps=plan.steps.map(n=>({name:n,status:"queued",conf:null,output:""}));
+  renderSteps();
+  logEvent("AGENT","PLAN_CREATED",plan.steps.join(" → "));
+  $("bench").innerHTML='<div class="banner ok" id="doneBanner"></div>';
+
+  const history=[];
+  for(let i=0;i<S.steps.length;i++){
+    const st=S.steps[i];
+    st.status="running"; renderSteps();
+    logEvent("AGENT","STEP_STARTED",`${i+1}. ${st.name}`);
+    let r;
+    try{
+      r=await claude(
+        [...history,{role:"user",content:
+`Overall task: ${task}
+Current step (${i+1}/${S.steps.length}): ${st.name}
+Validated human context so far: ${S.context.length?S.context.join(" | "):"none"}
+
+Execute this step. Honestly self-assess your confidence (0-1): mark it LOW (<0.75) if you are missing facts, guessing, or the action is consequential. Respond ONLY with JSON:
+{"output":"2-4 sentence result","confidence":0.0,"uncertainty_reasons":["..."],"proposed_action":"what you suggest if a human must decide"}`}],
+        "You are one step of a human-in-the-loop agent. Be candid about uncertainty; underclaiming beats overclaiming. Respond only with valid JSON.");
+    }catch(e){
+      logEvent("SYSTEM","ERROR",`Step ${i+1} failed: ${e.message}`);
+      st.status="queued"; renderSteps(); continue;
+    }
+    st.output=r.output; st.conf=Math.max(0,Math.min(1,Number(r.confidence)||0));
+    st.unsure=r.uncertainty_reasons; st.proposal=r.proposed_action;
+    history.push({role:"user",content:`Step ${i+1}: ${st.name}`},{role:"assistant",content:JSON.stringify(r)});
+    logEvent("AGENT","STEP_OUTPUT",`${st.name} — confidence ${pct(st.conf)}.`);
+
+    if(st.conf<threshold()){
+      st.status="hold"; renderSteps();
+      logEvent("AGENT","HOLD_RAISED",`${st.name}: confidence ${pct(st.conf)} < threshold.`);
+      const dec=await raiseHold(st,i);
+      logEvent("HUMAN", dec.kind==="approve"?"APPROVED":dec.kind==="guide"?"APPROVED_WITH_GUIDANCE":"REJECTED",
+        `${dec.who}: ${dec.note||"approved as proposed"}`);
+      if(dec.note){
+        S.context.push(dec.note);
+        logEvent("SYSTEM","CONTEXT_INJECTED",`Validated context added: "${dec.note}"`);
+        history.push({role:"user",content:`HUMAN DECISION on step ${i+1}: ${dec.kind.toUpperCase()}. Note: ${dec.note}. Treat this as validated ground truth.`});
+      }
+      if(dec.kind==="reject"){
+        st.output="Withdrawn per human rejection: "+dec.note;
+        st.status="revised";
+        logEvent("AGENT","STEP_REVISED",`${st.name} superseded by human constraint.`);
+      } else {
+        st.status="done";
+        logEvent("SYSTEM","RUN_RESUMED",`Resumed at step ${i+1} with sign-off.`);
+      }
+    } else {
+      st.status="done";
+    }
+    renderSteps();
+    $("bench").insertAdjacentHTML("beforeend", stepCard(st,i));
+  }
+  logEvent("SYSTEM","RUN_COMPLETED",`${S.steps.length} steps. ${S.holds} hold(s), ${S.humanActs} human action(s).`);
+  const b=$("doneBanner");
+  b.textContent=`Run complete — ${S.steps.length} steps, ${S.holds} hold point(s). Audit chain has ${S.audit.length} entries.`;
+  b.classList.add("show");
+}
+
+/* ================= wiring ================= */
+$("thresh").addEventListener("input",()=>$("threshVal").textContent=$("thresh").value+"%");
+$("engineSim").onclick=()=>setEngine("sim");
+$("engineApi").onclick=()=>setEngine("api");
+function setEngine(e){
+  S.engine=e;
+  $("engineSim").classList.toggle("on",e==="sim");
+  $("engineApi").classList.toggle("on",e==="api");
+  $("scenarioCtl").style.display = e==="sim" ? "" : "none";
+  $("taskRow").classList.toggle("show", e==="api");
+}
+$("runBtn").onclick=async()=>{
+  if(S.running) return;
+  S.running=true; $("runBtn").disabled=true;
+  S.steps=[]; S.context=[]; S.audit=[]; S.holds=0; S.humanActs=0;
+  $("logBox").innerHTML=""; $("verifyOut").textContent="";
+  $("cntEv").textContent="0"; $("cntHold").textContent="0"; $("cntHuman").textContent="0";
+  try{ S.engine==="sim" ? await runSim() : await runApi(); }
+  finally{ S.running=false; $("runBtn").disabled=false; }
+};
+$("verifyBtn").onclick=()=>{
+  const bad=verifyChain();
+  $("verifyOut").innerHTML = bad===0
+    ? '<span class="verify-ok">chain verified ✓</span>'
+    : `<span class="verify-bad">chain broken at #${bad}</span>`;
+  logEvent("SYSTEM","CHAIN_VERIFIED", bad===0?"Hash chain intact.":"Integrity failure at entry "+bad);
+};
+$("exportBtn").onclick=()=>{
+  const blob=new Blob([JSON.stringify({exported:now(),engine:S.engine,threshold:threshold(),
+    validated_context:S.context,audit_trail:S.audit},null,2)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="holdpoint-audit-"+Date.now()+".json";
+  a.click(); URL.revokeObjectURL(a.href);
+  logEvent("HUMAN","AUDIT_EXPORTED","Audit trail downloaded as JSON.");
+};
+</script>
+</body>
+</html>
