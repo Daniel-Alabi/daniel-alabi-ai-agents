@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grounded — RAG Agent with Citation Grounding</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F6F6F2; --card:#FFFFFF; --ink:#16181D; --muted:#6B6F76; --line:#DEDFD8;
+  --blue:#2743C9; --blue-soft:#EDEFFB;
+  --hl:#FFE45C; --hl-soft:#FFF6C9;
+  --amber:#B36D00; --amber-soft:#FFF3E0;
+  --green:#1E7F4F; --green-soft:#E7F4EC;
+  --red:#B3261E; --red-soft:#FDECEA;
+  --radius:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:'Archivo',system-ui,sans-serif; background:var(--paper); color:var(--ink);
+  font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:'IBM Plex Mono',monospace}
+
+/* ---------- header ---------- */
+header{
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
+  padding:14px 22px; border-bottom:1px solid var(--line); background:var(--card);
+  position:sticky; top:0; z-index:20;
+}
+.brand{display:flex; align-items:baseline; gap:10px}
+.brand h1{font-size:19px; font-weight:800; letter-spacing:-0.02em}
+.brand h1 mark{background:var(--hl); padding:0 4px; border-radius:3px}
+.brand .tag{font-size:12px; color:var(--muted)}
+.status-pill{
+  font-family:'IBM Plex Mono',monospace; font-size:11.5px; padding:4px 10px;
+  border:1px solid var(--line); border-radius:999px; color:var(--muted); background:var(--paper);
+}
+.status-pill.ok{color:var(--green); border-color:var(--green)}
+.status-pill.off{color:var(--amber); border-color:var(--amber)}
+
+/* ---------- layout ---------- */
+.wrap{display:grid; grid-template-columns:minmax(300px,380px) 1fr; gap:0; min-height:calc(100vh - 55px)}
+@media(max-width:880px){.wrap{grid-template-columns:1fr}}
+.panel{padding:20px 22px}
+.left{border-right:1px solid var(--line); background:#FBFBF8}
+@media(max-width:880px){.left{border-right:none; border-bottom:1px solid var(--line)}}
+
+h2{font-size:12px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--muted); margin-bottom:12px}
+h2 .count{color:var(--blue)}
+
+/* ---------- library ---------- */
+textarea, input[type=text]{
+  width:100%; font-family:inherit; font-size:14px; color:var(--ink);
+  background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:10px 12px;
+}
+textarea:focus, input:focus{outline:2px solid var(--blue); outline-offset:1px}
+#docText{min-height:96px; resize:vertical}
+.row{display:flex; gap:8px; margin-top:8px; flex-wrap:wrap}
+button{
+  font-family:inherit; font-size:13.5px; font-weight:600; cursor:pointer;
+  border-radius:var(--radius); border:1px solid var(--line); background:var(--card); color:var(--ink);
+  padding:8px 14px; transition:background .15s, transform .05s;
+}
+button:hover{background:var(--blue-soft)}
+button:active{transform:translateY(1px)}
+button:focus-visible{outline:2px solid var(--blue); outline-offset:2px}
+button.primary{background:var(--blue); border-color:var(--blue); color:#fff}
+button.primary:hover{background:#1D33A3}
+button.ghost{background:transparent}
+button:disabled{opacity:.45; cursor:not-allowed}
+.doclist{margin-top:16px; display:flex; flex-direction:column; gap:8px}
+.doc{
+  background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+  padding:10px 12px; display:flex; justify-content:space-between; align-items:center; gap:10px;
+}
+.doc .name{font-weight:600; font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.doc .meta{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted)}
+.doc button{padding:3px 9px; font-size:12px}
+.empty{color:var(--muted); font-size:13.5px; padding:14px 4px}
+
+/* ---------- ask ---------- */
+.askbar{display:flex; gap:8px}
+.askbar input{flex:1; padding:12px 14px; font-size:15px}
+.settings{display:flex; gap:18px; flex-wrap:wrap; margin-top:12px; align-items:center; font-size:13px; color:var(--muted)}
+.settings label{display:flex; align-items:center; gap:7px}
+.settings input[type=range]{width:110px; accent-color:var(--blue)}
+.settings input[type=checkbox]{accent-color:var(--blue); width:15px; height:15px}
+.settings .val{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink)}
+
+/* ---------- answer ---------- */
+.answer-card{
+  margin-top:20px; background:var(--card); border:1px solid var(--line);
+  border-radius:14px; padding:20px 22px;
+}
+.banner{
+  display:flex; gap:10px; align-items:flex-start; padding:10px 14px; border-radius:var(--radius);
+  font-size:13.5px; margin-bottom:14px; border:1px solid transparent;
+}
+.banner.grounded{background:var(--green-soft); color:var(--green); border-color:#BFE3CE}
+.banner.low{background:var(--amber-soft); color:var(--amber); border-color:#F0D2A0}
+.banner.web{background:var(--blue-soft); color:var(--blue); border-color:#C6CDF2}
+.banner.err{background:var(--red-soft); color:var(--red); border-color:#F1C4C0}
+.banner b{font-weight:700}
+.banner .act{margin-left:auto; white-space:nowrap}
+.answer-text{font-size:15.5px; line-height:1.7}
+.answer-text p{margin-bottom:10px}
+.answer-text a{color:var(--blue)}
+.cite{
+  display:inline-block; font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:600;
+  background:var(--hl); color:var(--ink); border-radius:4px; padding:0 5px; margin:0 2px;
+  cursor:pointer; border:none; vertical-align:baseline; line-height:1.6;
+}
+.cite:hover{background:#F5D63B}
+
+/* grounding meter */
+.meter-wrap{margin-top:16px; padding-top:14px; border-top:1px dashed var(--line)}
+.meter-head{display:flex; justify-content:space-between; font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--muted); margin-bottom:6px}
+.meter{height:8px; background:var(--paper); border:1px solid var(--line); border-radius:999px; overflow:hidden; position:relative}
+.meter .fill{height:100%; border-radius:999px; width:0; transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.meter .tick{position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--ink); opacity:.5}
+
+/* ---------- evidence ---------- */
+.evidence{margin-top:20px}
+.chunk{
+  background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+  padding:12px 14px; margin-bottom:10px; transition:box-shadow .2s;
+}
+.chunk .head{display:flex; gap:10px; align-items:center; margin-bottom:6px; flex-wrap:wrap}
+.chunk .sid{font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:600; background:var(--hl); border-radius:4px; padding:0 5px}
+.chunk .src{font-size:12.5px; font-weight:600}
+.chunk .score{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted); margin-left:auto}
+.chunk .body{font-size:13.5px; color:#3A3D42; white-space:pre-wrap}
+.chunk.lit{box-shadow:0 0 0 2px var(--hl); }
+.chunk.lit .body{background:linear-gradient(90deg,var(--hl-soft),transparent 85%); border-radius:4px}
+.spin{display:inline-block; width:14px; height:14px; border:2px solid var(--blue-soft); border-top-color:var(--blue); border-radius:50%; animation:sp .7s linear infinite; vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){ *{transition:none!important; animation:none!important} }
+.hidden{display:none}
+footer{padding:14px 22px; color:var(--muted); font-size:12px; border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>Grounded<mark>.</mark></h1>
+    <span class="tag">RAG agent · every claim carries its source</span>
+  </div>
+  <span id="apiStatus" class="status-pill">api: untested</span>
+</header>
+
+<div class="wrap">
+
+  <!-- ============ LIBRARY ============ -->
+  <aside class="panel left">
+    <h2>Library <span class="count" id="docCount">· 0 docs / 0 chunks</span></h2>
+    <input type="text" id="docName" placeholder="Document title (e.g. Grid Ops Manual)">
+    <textarea id="docText" placeholder="Paste document text here…" style="margin-top:8px"></textarea>
+    <div class="row">
+      <button class="primary" onclick="addDocFromForm()">Add to library</button>
+      <button onclick="fileInput.click()">Upload .txt / .md</button>
+      <button class="ghost" onclick="loadSamples()">Load sample docs</button>
+      <input type="file" id="fileInput" class="hidden" accept=".txt,.md,.csv,.log" multiple onchange="handleFiles(this.files)">
+    </div>
+    <div class="doclist" id="docList"><div class="empty">No documents yet. Add text above, upload files, or load the sample library to try it out.</div></div>
+  </aside>
+
+  <!-- ============ ASK ============ -->
+  <main class="panel">
+    <h2>Ask</h2>
+    <div class="askbar">
+      <input type="text" id="question" placeholder="Ask a question about your library…" onkeydown="if(event.key==='Enter')ask()">
+      <button class="primary" id="askBtn" onclick="ask()">Answer with sources</button>
+    </div>
+    <div class="settings">
+      <label>Top-K chunks <input type="range" id="topK" min="2" max="8" value="4" oninput="kVal.textContent=this.value"><span class="val" id="kVal">4</span></label>
+      <label>Confidence floor <input type="range" id="confFloor" min="20" max="90" value="55" oninput="cVal.textContent=this.value"><span class="val" id="cVal">55</span></label>
+      <label><input type="checkbox" id="autoFallback" checked> Auto web-search fallback</label>
+    </div>
+
+    <div id="answerArea"></div>
+
+    <div class="evidence">
+      <h2 id="evTitle" class="hidden">Retrieved evidence</h2>
+      <div id="evList"></div>
+    </div>
+  </main>
+</div>
+
+<footer>Retrieval runs fully in-browser (BM25). Generation uses the Claude API when reachable; otherwise the agent falls back to an offline extractive answer. Low-confidence or unsupported answers are flagged and can escalate to live web search.</footer>
+
+<script>
+/* =====================================================
+   STATE
+===================================================== */
+let docs = [];            // {name, text}
+let chunks = [];          // {id:'S1', doc, text, tf, len}
+let idf = {}, avgLen = 0; // BM25 stats
+let lastRetrieved = [];   // chunks shown in evidence panel
+const $ = id => document.getElementById(id);
+
+/* =====================================================
+   CHUNKING
+===================================================== */
+const CHUNK_TARGET = 900, CHUNK_OVERLAP = 150;
+function chunkText(text){
+  const paras = text.split(/\n{2,}/).map(p=>p.trim()).filter(Boolean);
+  const out = []; let buf = '';
+  for(const p of paras){
+    if((buf + '\n\n' + p).length > CHUNK_TARGET && buf){
+      out.push(buf);
+      buf = buf.slice(-CHUNK_OVERLAP) + '\n\n' + p;   // overlap tail
+    } else buf = buf ? buf + '\n\n' + p : p;
+  }
+  if(buf) out.push(buf);
+  // hard-split any oversized chunk
+  return out.flatMap(c => c.length <= CHUNK_TARGET*1.6 ? [c] :
+    c.match(new RegExp(`[\\s\\S]{1,${CHUNK_TARGET}}(\\s|$)`,'g')) || [c]);
+}
+
+/* =====================================================
+   BM25 RETRIEVAL (in-browser, offline)
+===================================================== */
+const STOP = new Set('a an and are as at be but by for from has have if in into is it its of on or that the this to was were will with what which who how when where why does do did not'.split(' '));
+const tokenize = s => s.toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(t=>t && !STOP.has(t));
+
+function rebuildIndex(){
+  chunks = []; let n = 1;
+  for(const d of docs)
+    for(const c of chunkText(d.text)){
+      const toks = tokenize(c), tf = {};
+      toks.forEach(t => tf[t] = (tf[t]||0)+1);
+      chunks.push({id:'S'+(n++), doc:d.name, text:c, tf, len:toks.length});
+    }
+  const df = {};
+  chunks.forEach(ch => Object.keys(ch.tf).forEach(t => df[t]=(df[t]||0)+1));
+  idf = {};
+  const N = chunks.length || 1;
+  Object.keys(df).forEach(t => idf[t] = Math.log(1 + (N - df[t] + 0.5)/(df[t] + 0.5)));
+  avgLen = chunks.reduce((s,c)=>s+c.len,0)/N || 1;
+  $('docCount').textContent = `· ${docs.length} doc${docs.length===1?'':'s'} / ${chunks.length} chunks`;
+}
+
+function bm25(query, k){
+  const k1=1.4, b=0.75, q = tokenize(query);
+  return chunks.map(ch => {
+    let s = 0;
+    for(const t of q){
+      const f = ch.tf[t]; if(!f) continue;
+      s += (idf[t]||0) * (f*(k1+1)) / (f + k1*(1 - b + b*ch.len/avgLen));
+    }
+    return {ch, s};
+  }).filter(r=>r.s>0).sort((a,b)=>b.s-a.s).slice(0,k);
+}
+
+/* =====================================================
+   LIBRARY UI
+===================================================== */
+function addDoc(name, text){
+  if(!text.trim()) return;
+  docs.push({name: name.trim() || 'Untitled ' + (docs.length+1), text: text.trim()});
+  rebuildIndex(); renderDocs();
+}
+function addDocFromForm(){
+  addDoc($('docName').value, $('docText').value);
+  $('docName').value=''; $('docText').value='';
+}
+function handleFiles(files){
+  [...files].forEach(f => {
+    const r = new FileReader();
+    r.onload = () => addDoc(f.name.replace(/\.[^.]+$/,''), r.result);
+    r.readAsText(f);
+  });
+  $('fileInput').value='';
+}
+function removeDoc(i){ docs.splice(i,1); rebuildIndex(); renderDocs(); }
+function renderDocs(){
+  const el = $('docList');
+  if(!docs.length){ el.innerHTML = '<div class="empty">No documents yet. Add text above, upload files, or load the sample library to try it out.</div>'; return; }
+  el.innerHTML = docs.map((d,i)=>`
+    <div class="doc">
+      <div style="min-width:0">
+        <div class="name">${esc(d.name)}</div>
+        <div class="meta">${(d.text.length/1000).toFixed(1)}k chars · ${chunkText(d.text).length} chunks</div>
+      </div>
+      <button onclick="removeDoc(${i})" aria-label="Remove ${esc(d.name)}">Remove</button>
+    </div>`).join('');
+}
+function loadSamples(){
+  addDoc('Substation SCADA Primer',
+`SCADA systems in transmission substations poll intelligent electronic devices (IEDs) such as protective relays and meters over protocols like DNP3 and IEC 61850. Polling intervals for analog telemetry typically range from 2 to 10 seconds, while status points (breaker positions, alarms) are event-driven via unsolicited reporting.
+
+Historian databases store time-series tags with compression. A common deadband configuration is 0.5% of span for analog values, which balances storage cost against fidelity for post-event analysis.
+
+Anomaly detection on SCADA telemetry generally combines rule-based limit checks with statistical baselining. Rolling z-scores over a 24-hour window catch slow drifts in transformer top-oil temperature, while rate-of-change rules catch fast excursions such as a stuck sensor or a CT saturation event.`);
+  addDoc('Drone Inspection SOP',
+`Part 107 operations for utility inspection require a preflight check covering airframe, propellers, battery health above 90% state of charge at launch, and a confirmed GPS lock with at least 12 satellites.
+
+Thermal inspections of solar arrays should be flown within two hours of solar noon with irradiance above 600 W/m², at 30–40 m AGL, with 70% frontal and side overlap for orthomosaic stitching. Hotspots exceeding a 20°C delta over neighboring cells indicate probable bypass diode failure.
+
+For transmission line corridors, maintain 15 m lateral standoff from energized conductors and never fly directly above the line. Crew consists of one remote pilot in command and one visual observer.`);
+  addDoc('Hyperspectral Basics',
+`Hyperspectral imagers capture hundreds of narrow contiguous spectral bands, typically 400–1000 nm for VNIR sensors. Each pixel yields a full reflectance spectrum, enabling material identification via spectral angle mapping or matched filtering.
+
+Radiometric calibration converts raw digital numbers to radiance using dark-frame subtraction and a flat-field reference. Atmospheric correction (e.g., empirical line method with field tarps) then converts radiance to surface reflectance.
+
+Vegetation stress appears as a shift in the red edge (700–740 nm) before it is visible to the eye, which is why hyperspectral is used for early detection of disease and nutrient deficiency in crops.`);
+}
+
+/* =====================================================
+   ASK PIPELINE
+===================================================== */
+async function ask(){
+  const q = $('question').value.trim();
+  if(!q) return;
+  if(!chunks.length){ renderBanner('err','No documents in the library yet — add or load documents first, or enable web-search fallback by asking again after adding sources.'); return; }
+  $('askBtn').disabled = true;
+  $('answerArea').innerHTML = `<div class="answer-card"><span class="spin"></span> &nbsp;Retrieving evidence and drafting a grounded answer…</div>`;
+
+  const k = +$('topK').value;
+  const hits = bm25(q, k);
+  lastRetrieved = hits;
+  renderEvidence(hits);
+
+  if(!hits.length){
+    lowConfidencePath(q, null, 'No relevant passages found in the library for this question.');
+    $('askBtn').disabled = false;
+    return;
+  }
+
+  try{
+    const result = await generateGrounded(q, hits);
+    $('apiStatus').textContent = 'api: connected'; $('apiStatus').className = 'status-pill ok';
+    const floor = +$('confFloor').value;
+    if(result.insufficient_context || result.confidence < floor){
+      lowConfidencePath(q, result, result.insufficient_context
+        ? 'The model reports the library does not contain enough information to answer this.'
+        : `Confidence ${result.confidence} is below your floor of ${floor}.`);
+    } else {
+      renderAnswer(result, 'grounded');
+    }
+  } catch(e){
+    $('apiStatus').textContent = 'api: offline'; $('apiStatus').className = 'status-pill off';
+    const ex = extractiveAnswer(q, hits);
+    renderAnswer(ex, ex.confidence >= +$('confFloor').value ? 'grounded' : 'low',
+      'Claude API unreachable — this is an offline extractive answer built from the top-ranked passages.');
+  }
+  $('askBtn').disabled = false;
+}
+
+/* ---- Claude API: grounded generation ---- */
+async function generateGrounded(q, hits){
+  const ctx = hits.map(h=>`[${h.ch.id}] (from "${h.ch.doc}")\n${h.ch.text}`).join('\n\n---\n\n');
+  const prompt = `You are a retrieval-grounded QA agent. Answer the question using ONLY the context passages below. Every factual sentence must end with its supporting source marker(s) like [S1] or [S2][S3]. If the context does not contain the answer, say so.
+
+Respond with ONLY a JSON object, no markdown fences, in this exact shape:
+{"answer":"answer text with [S#] markers","citations":[{"id":"S1","support":"one-line note on what this source establishes"}],"confidence": 0-100 integer reflecting how fully the context supports the answer,"insufficient_context": true/false}
+
+CONTEXT:
+${ctx}
+
+QUESTION: ${q}`;
+  const resp = await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({model:'claude-sonnet-4-6', max_tokens:1000, messages:[{role:'user',content:prompt}]})
+  });
+  if(!resp.ok) throw new Error('api');
+  const data = await resp.json();
+  const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+  const clean = text.replace(/```json|```/g,'').trim();
+  const j = JSON.parse(clean.slice(clean.indexOf('{'), clean.lastIndexOf('}')+1));
+  j.confidence = Math.max(0, Math.min(100, Math.round(+j.confidence || 0)));
+  j.mode = 'api';
+  return j;
+}
+
+/* ---- Low-confidence path: flag, then optional web-search fallback ---- */
+async function lowConfidencePath(q, partial, reason){
+  if($('autoFallback').checked){
+    renderBanner('low', `<b>Low confidence.</b> ${esc(reason)} Escalating to live web search…`, true);
+    try{
+      const web = await webSearchAnswer(q);
+      renderAnswer(web, 'web', reason);
+      return;
+    } catch(e){
+      renderAnswer(partial || {answer:'The library could not support an answer and web search was unavailable.', citations:[], confidence: partial? partial.confidence : 0},
+        'low', reason + ' Web-search fallback also failed — showing the best available (unverified) draft.');
+      return;
+    }
+  }
+  if(partial) renderAnswer(partial, 'low', reason + ' Auto-fallback is off; enable it to escalate to web search.');
+  else renderBanner('low', `<b>Low confidence.</b> ${esc(reason)} Auto-fallback is off; enable it to escalate to web search.`);
+}
+
+/* ---- Claude API + web search tool ---- */
+async function webSearchAnswer(q){
+  const resp = await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      model:'claude-sonnet-4-6', max_tokens:1000,
+      messages:[{role:'user',content:`Answer this question using web search. Cite sources inline as markdown links. Be concise. Question: ${q}`}],
+      tools:[{type:'web_search_20250305', name:'web_search'}]
+    })
+  });
+  if(!resp.ok) throw new Error('api');
+  const data = await resp.json();
+  const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
+  if(!text) throw new Error('empty');
+  return {answer:text, citations:[], confidence:null, mode:'web'};
+}
+
+/* ---- Offline extractive fallback (no API needed) ---- */
+function extractiveAnswer(q, hits){
+  const qt = new Set(tokenize(q));
+  const picks = [];
+  for(const h of hits.slice(0,3)){
+    const sentences = h.ch.text.split(/(?<=[.!?])\s+/);
+    let best = '', bs = 0;
+    for(const s of sentences){
+      const ov = tokenize(s).filter(t=>qt.has(t)).length;
+      if(ov > bs){ bs = ov; best = s; }
+    }
+    if(best) picks.push({s: best.trim(), id: h.ch.id, score: bs});
+  }
+  const maxOv = Math.max(1, qt.size);
+  const conf = Math.round(Math.min(90, 100 * (picks[0]?.score || 0) / maxOv));
+  return {
+    answer: picks.length
+      ? picks.map(p=>`${p.s} [${p.id}]`).join(' ')
+      : 'No passage in the library directly addresses this question.',
+    citations: picks.map(p=>({id:p.id, support:'Extracted sentence with highest term overlap'})),
+    confidence: conf, insufficient_context: !picks.length, mode:'offline'
+  };
+}
+
+/* =====================================================
+   RENDERING
+===================================================== */
+function esc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function mdLinks(s){ // minimal markdown link + bold rendering for web answers
+  return s.replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>')
+          .replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
+}
+
+function citify(text){
+  return esc(text).replace(/\[(S\d+)\]/g, (m,id)=>`<button class="cite" onclick="lightChunk('${id}')" title="Show source ${id}">${id}</button>`);
+}
+
+function renderAnswer(r, kind, note){
+  const banners = {
+    grounded: `<div class="banner grounded">✓ <span><b>Grounded.</b> Every claim below is tied to a passage in your library. Click a citation to see its source.${note?' '+esc(note):''}</span></div>`,
+    low:      `<div class="banner low">⚠ <span><b>Low confidence.</b> ${note?esc(note):'Treat this answer as provisional.'}</span></div>`,
+    web:      `<div class="banner web">🌐 <span><b>Answered from live web search</b> — not grounded in your library. ${note?esc(note):''}</span></div>`
+  };
+  const body = r.mode === 'web' ? mdLinks(esc(r.answer)) : citify(r.answer);
+  const floor = +$('confFloor').value;
+  const meter = r.confidence === null ? '' : `
+    <div class="meter-wrap">
+      <div class="meter-head"><span>grounding confidence</span><span>${r.confidence}/100 · floor ${floor}</span></div>
+      <div class="meter">
+        <div class="tick" style="left:${floor}%"></div>
+        <div class="fill" id="meterFill" style="background:${r.confidence>=floor?'var(--green)':'var(--amber)'}"></div>
+      </div>
+    </div>`;
+  const cites = (r.citations||[]).length ? `
+    <div class="meter-wrap">
+      <div class="meter-head"><span>citation map</span><span>${r.citations.length} source${r.citations.length===1?'':'s'}</span></div>
+      ${r.citations.map(c=>`<div style="font-size:13px; margin:4px 0"><button class="cite" onclick="lightChunk('${esc(c.id)}')">${esc(c.id)}</button> ${esc(c.support||'')}</div>`).join('')}
+    </div>` : '';
+  $('answerArea').innerHTML = `<div class="answer-card">${banners[kind]||''}<div class="answer-text">${body}</div>${meter}${cites}</div>`;
+  if(r.confidence !== null) requestAnimationFrame(()=>{ const f=$('meterFill'); if(f) f.style.width = r.confidence+'%'; });
+}
+
+function renderBanner(kind, html, keepSpin){
+  $('answerArea').innerHTML = `<div class="answer-card"><div class="banner ${kind}">${keepSpin?'<span class="spin"></span>':''} <span>${html}</span></div></div>`;
+}
+
+function renderEvidence(hits){
+  $('evTitle').classList.toggle('hidden', !hits.length);
+  const max = hits[0]?.s || 1;
+  $('evList').innerHTML = hits.map(h=>`
+    <div class="chunk" id="chunk-${h.ch.id}">
+      <div class="head">
+        <span class="sid">${h.ch.id}</span>
+        <span class="src">${esc(h.ch.doc)}</span>
+        <span class="score">bm25 ${(h.s).toFixed(2)} · ${(100*h.s/max).toFixed(0)}%</span>
+      </div>
+      <div class="body">${esc(h.ch.text)}</div>
+    </div>`).join('');
+}
+
+function lightChunk(id){
+  document.querySelectorAll('.chunk.lit').forEach(c=>c.classList.remove('lit'));
+  const el = $('chunk-'+id);
+  if(!el) return;
+  el.classList.add('lit');
+  el.scrollIntoView({behavior:'smooth', block:'center'});
+}
+</script>
+</body>
+</html>
