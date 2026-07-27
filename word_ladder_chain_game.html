@@ -1,0 +1,147 @@
+<h2 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">Interactive word ladder game: change one letter of the current word to form a new valid word and build the longest chain.</h2>
+<div style="padding: 1rem 0;">
+  <div style="display:flex; gap:12px; margin-bottom:1.25rem;">
+    <div style="flex:1; background: var(--surface-1); border-radius: var(--radius); padding: 0.75rem 1rem;">
+      <p style="margin:0; font-size:13px; color: var(--text-muted);">Chain length</p>
+      <p style="margin:0; font-size:24px; font-weight:500;" id="score">1</p>
+    </div>
+    <div style="flex:1; background: var(--surface-1); border-radius: var(--radius); padding: 0.75rem 1rem;">
+      <p style="margin:0; font-size:13px; color: var(--text-muted);">Best chain</p>
+      <p style="margin:0; font-size:24px; font-weight:500;" id="best">1</p>
+    </div>
+    <div style="flex:1; background: var(--surface-1); border-radius: var(--radius); padding: 0.75rem 1rem;">
+      <p style="margin:0; font-size:13px; color: var(--text-muted);">Hints left</p>
+      <p style="margin:0; font-size:24px; font-weight:500;" id="hints">3</p>
+    </div>
+  </div>
+
+  <p style="margin:0 0 0.5rem; font-size:13px; color: var(--text-secondary);">Current word</p>
+  <div id="current" style="display:flex; gap:8px; margin-bottom:1.25rem;"></div>
+
+  <div style="display:flex; gap:8px; margin-bottom:0.5rem;">
+    <input id="guess" type="text" maxlength="4" placeholder="next word" autocomplete="off" style="flex:1; font-size:18px; letter-spacing:4px; text-transform:lowercase;" />
+    <button id="go">Play word</button>
+  </div>
+  <p id="msg" style="min-height:22px; margin:0 0 1rem; font-size:14px; color: var(--text-secondary);"></p>
+
+  <div style="display:flex; gap:8px; margin-bottom:1.5rem;">
+    <button id="hintBtn"><i class="ti ti-bulb" style="font-size:16px; vertical-align:-2px;" aria-hidden="true"></i> Hint</button>
+    <button id="newBtn"><i class="ti ti-refresh" style="font-size:16px; vertical-align:-2px;" aria-hidden="true"></i> New chain</button>
+  </div>
+
+  <p style="margin:0 0 0.5rem; font-size:13px; color: var(--text-secondary);">Your chain</p>
+  <div id="chain" style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;"></div>
+</div>
+
+<script>
+const DICT = new Set(("able ache acid aged also area army away baby back bail bait bake bald ball band bane bang bank bare bark barn base bash bass bath bead beak beam bean bear beat beef been beer bell belt bend bent best bike bile bill bind bird bite blow blue boar boat boil bold bolt bomb bond bone book boom boot bore born boss both bout bowl brag bran brat brew brim buck bull bump bunk burn bury bush bust busy cage cake calf call calm came camp cane cape card care carp cart case cash cast cave cell cent chap chat chef chew chin chip chop cite city clam clan clap claw clay clip club clue coal coat code coil coin coke cold colt comb come cone cook cool cope copy cord core cork corn cost cosy cove crab crew crib crop crow cube cure curl cute dale dame damp dare dark darn dart dash data date dawn dead deaf deal dean dear debt deck deed deep deer dent desk dial dice diet dime dine dire dirt dish dive dock dole doll dome done doom door dose dote dove down drag draw drew drip drop drum duck dude duel dull dumb dump dune dusk dust duty each earn ease east easy edge else even ever exam exit face fact fade fail fair fake fall fame fang fare farm fast fate fawn fear feat feed feel feet fell felt fend fern feud file fill film find fine fire firm fish fist five flag flap flat flaw flea fled flee flew flip flop flow flue foal foam foil fold folk fond font food fool foot ford fore fork form fort foul four fowl free frog from fuel full fume fund fuse fuss gain gait gale game gang gape gash gasp gate gave gaze gear gene gift gill girl give glad glow glue goal goat goes gold golf gone gong good gore gown grab gray grew grey grid grim grin grip grow gulf gull gulp gush gust hail hair hale half hall halt hand hang hard hare harm harp hash hate haul have hawk haze head heal heap hear heat heed heel held helm help herb herd here hero hide high hike hill hilt hind hint hire hive hold hole holy home hone hood hoof hook hoop hope horn hose host hour howl huge hull hump hung hunt hurl hurt hush husk icon idea idle inch into iron item jade jail java jazz jest jilt join joke jolt jump junk jury just keel keen keep kelp kick kill kilt kind king kiss kite knee knew knit knob knot know lace lack lain lair lake lamb lame lamp land lane lank lard lark lash last late lava lawn lazy lead leaf leak lean leap left lend lens lent less lest liar lice lick life lift like limb lime limp line link lint lion list live load loaf loan lock loft logo lone long look loom loop loot lord lore lose loss lost loud love luck lull lump lung lure lurk lush lust made maid mail main make male mall malt mane many mare mark mash mask mass mast mate math maze mead meal mean meat meek meet meld melt mend menu mere mesh mess mice mild mile milk mill mime mind mine mint mire miss mist mite moan moat mock mode mold mole monk mood moon moor moot mope more morn moss most moth move much muck mule mull muse mush must mute nail name nape navy near neat neck need nest news next nice nick nine node none nook noon nose note noun oval oven over pace pack pact page paid pail pain pair pale palm pane pang pant park part pass past pate path pave pawn peak peal pear peat peck peel peer pelt pens pent perk pest pier pile pill pine pink pint pipe pity plan play plea plot plow ploy plug plum plus poem poet poke pole poll pond pony pool poor pope pore pork port pose post pour pray prey prod prop pull pulp pump punk pure push putt quit quiz race rack raft rage raid rail rain rake ramp rang rank rant rare rash rate rave read real ream reap rear reed reef reel rein rely rend rent rest rice rich ride rift rile rime rind ring rink riot ripe rise risk rite road roam roar robe rock rode role roll roof rook room root rope rose rosy rote rout rove rude ruin rule rung runt ruse rush rust sack safe sage said sail sake sale salt same sand sane sang sank sash save scan scar seal seam sear seat sect seed seek seem seen seep self sell send sent shed shin ship shoe shop shot show shut sick side sift sigh sign silk sill silo silt sine sing sink sire site size skew skid skim skin skip slab slam slap sled slew slid slim slip slit slot slow slug slum smog snag snap snip snob snow soak soap soar sock soda sofa soft soil sold sole solo some song soon soot sore sort soul soup sour sown span spar spat sped spin spit spot spun spur stab stag star stay stem step stew stir stop stow stub stun such suck suit sung sunk sure surf swab swam swan swap swat sway swim tack tact tail take tale talk tall tame tank tape tart task team tear teem teen tell tend tent term test text than that them then they thin this thud thug tick tide tidy tier tile till tilt time tine tint tiny tire toad toil told toll tomb tone took tool toot tore torn tote tour town trap tray tree trek trim trip trod trot true tuba tube tuck tune turf turn tusk twig twin type ugly undo unit upon urge used user vain vane vase vast veal veer veil vein vend vent verb very vest vice view vine visa void vole vote wade wage waif wail wait wake walk wall wand wane want ward ware warm warn warp wart wash wasp watt wave wavy waxy weak wean wear weed week weep weld well welt went wept were west what when whim whip whom wick wide wife wild will wilt wind wine wing wink wipe wire wise wish with woke wolf womb wood wool word wore work worm worn wove wrap yard yarn yawn year yell yelp yoga yoke your zeal zero zest zinc zone zoom").split(" "));
+
+let chain = [], best = 1, hintsLeft = 3;
+
+function oneOff(a, b){
+  if (a.length !== b.length) return false;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) d++;
+  return d === 1;
+}
+
+function neighbors(w){
+  const out = [];
+  for (const cand of DICT) if (oneOff(w, cand) && !chain.includes(cand)) out.push(cand);
+  return out;
+}
+
+function randomStart(){
+  const arr = [...DICT].filter(w => {
+    chain = [w];
+    const n = neighbors(w).length;
+    chain = [];
+    return n >= 4;
+  });
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function renderCurrent(){
+  const w = chain[chain.length - 1];
+  const box = document.getElementById("current");
+  box.innerHTML = "";
+  for (const ch of w){
+    const t = document.createElement("div");
+    t.textContent = ch;
+    t.style.cssText = "width:52px;height:52px;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:500;background:#EEEDFE;color:#3C3489;border:0.5px solid #534AB7;border-radius:var(--radius);text-transform:uppercase;";
+    if (matchMedia("(prefers-color-scheme: dark)").matches){
+      t.style.background = "#3C3489"; t.style.color = "#CECBF6"; t.style.borderColor = "#AFA9EC";
+    }
+    box.appendChild(t);
+  }
+}
+
+function renderChain(){
+  const box = document.getElementById("chain");
+  box.innerHTML = "";
+  chain.forEach((w, i) => {
+    if (i > 0){
+      const a = document.createElement("i");
+      a.className = "ti ti-arrow-right";
+      a.setAttribute("aria-hidden", "true");
+      a.style.cssText = "font-size:14px;color:var(--text-muted);";
+      box.appendChild(a);
+    }
+    const p = document.createElement("span");
+    p.textContent = w;
+    p.style.cssText = "padding:4px 10px;font-size:14px;background:var(--surface-1);border-radius:var(--radius);text-transform:uppercase;letter-spacing:1px;";
+    box.appendChild(p);
+  });
+  document.getElementById("score").textContent = chain.length;
+  best = Math.max(best, chain.length);
+  document.getElementById("best").textContent = best;
+}
+
+function say(text, ok){
+  const m = document.getElementById("msg");
+  m.textContent = text;
+  m.style.color = ok ? "var(--text-success)" : "var(--text-danger)";
+}
+
+function play(){
+  const inp = document.getElementById("guess");
+  const w = inp.value.trim().toLowerCase();
+  const cur = chain[chain.length - 1];
+  if (w.length !== 4){ say("Words must be 4 letters", false); return; }
+  if (w === cur){ say("That's the current word", false); return; }
+  if (chain.includes(w)){ say("Already used in this chain", false); return; }
+  if (!oneOff(cur, w)){ say("Change exactly one letter of " + cur.toUpperCase(), false); return; }
+  if (!DICT.has(w)){ say("Not in the word list", false); return; }
+  chain.push(w);
+  inp.value = "";
+  const n = neighbors(w).length;
+  say(n === 0 ? "Nice word — but the chain is stuck. Start a new one!" : "Nice! " + n + " possible next words", true);
+  renderCurrent(); renderChain();
+  inp.focus();
+}
+
+function hint(){
+  if (hintsLeft === 0){ say("No hints left", false); return; }
+  const opts = neighbors(chain[chain.length - 1]);
+  if (opts.length === 0){ say("No moves possible — start a new chain", false); return; }
+  hintsLeft--;
+  document.getElementById("hints").textContent = hintsLeft;
+  const pick = opts[Math.floor(Math.random() * opts.length)];
+  say("Try: " + pick[0].toUpperCase() + " _ _ _  (starts with " + pick[0].toUpperCase() + ")", true);
+}
+
+function fresh(){
+  chain = [randomStart()];
+  hintsLeft = 3;
+  document.getElementById("hints").textContent = hintsLeft;
+  say("", true);
+  document.getElementById("guess").value = "";
+  renderCurrent(); renderChain();
+}
+
+document.getElementById("go").addEventListener("click", play);
+document.getElementById("guess").addEventListener("keydown", e => { if (e.key === "Enter") play(); });
+document.getElementById("hintBtn").addEventListener("click", hint);
+document.getElementById("newBtn").addEventListener("click", fresh);
+fresh();
+</script>
