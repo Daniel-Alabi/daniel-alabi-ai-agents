@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Support Chatbot Widget</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f5f5f7; --bg3: #ebebed;
+    --text: #111; --text2: #555; --text3: #888;
+    --border: rgba(0,0,0,0.1); --border2: rgba(0,0,0,0.18);
+    --accent: #1a1a2e; --accent2: #2e2e5e; --accent-soft: #a5b4fc;
+    --green: #16a34a; --green-bg: #dcfce7; --green-text: #14532d;
+    --amber: #b45309; --amber-bg: #fef3c7; --amber-text: #78350f;
+    --red: #dc2626; --red-bg: #fee2e2; --red-text: #7f1d1d;
+    --blue: #2563eb; --blue-bg: #dbeafe; --blue-text: #1e3a8a;
+    --radius: 12px; --radius-sm: 8px; --radius-pill: 999px;
+    --shadow: 0 8px 40px rgba(0,0,0,0.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1e; --bg2: #2c2c2e; --bg3: #3a3a3c;
+      --text: #f5f5f7; --text2: #aeaeb2; --text3: #636366;
+      --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.18);
+      --green-bg: #14532d; --green-text: #bbf7d0;
+      --amber-bg: #78350f; --amber-text: #fde68a;
+      --red-bg: #7f1d1d; --red-text: #fecaca;
+      --blue-bg: #1e3a8a; --blue-text: #bfdbfe;
+    }
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg2); min-height: 100vh; }
+
+  /* ── LAUNCHER ── */
+  #chat-launcher {
+    position: fixed; bottom: 24px; right: 24px;
+    width: 58px; height: 58px; border-radius: 50%;
+    background: var(--accent); border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--shadow); transition: transform 0.2s, background 0.2s;
+    z-index: 9999;
+  }
+  #chat-launcher:hover { background: var(--accent2); transform: scale(1.06); }
+  #chat-launcher i { color: #fff; font-size: 24px; }
+  .launcher-badge {
+    position: absolute; top: -2px; right: -2px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: #ef4444; color: #fff; font-size: 11px;
+    font-weight: 600; display: flex; align-items: center; justify-content: center;
+    border: 2px solid var(--bg2); display: none;
+  }
+
+  /* ── WINDOW ── */
+  #chat-window {
+    position: fixed; bottom: 96px; right: 24px;
+    width: 370px; height: 580px;
+    background: var(--bg);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    display: flex; flex-direction: column;
+    overflow: hidden; box-shadow: var(--shadow);
+    transition: opacity 0.22s, transform 0.22s;
+    z-index: 9998;
+  }
+  #chat-window.hidden { opacity: 0; pointer-events: none; transform: translateY(14px) scale(0.97); }
+
+  /* ── HEADER ── */
+  #chat-header {
+    background: var(--accent); padding: 13px 14px;
+    display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  }
+  .h-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(255,255,255,0.12);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .h-avatar i { color: var(--accent-soft); font-size: 18px; }
+  .h-info { flex: 1; min-width: 0; }
+  .h-name { font-size: 14px; font-weight: 600; color: #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .h-status { font-size: 11px; color: #94a3b8; display: flex; align-items: center; gap: 4px; margin-top: 1px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; flex-shrink: 0; }
+  .status-dot.away { background: #fbbf24; }
+  .status-dot.handoff { background: #f87171; animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .h-btn { background: none; border: none; cursor: pointer; padding: 5px; border-radius: 6px; flex-shrink: 0; }
+  .h-btn i { color: #94a3b8; font-size: 17px; display: block; }
+  .h-btn:hover i { color: #f1f5f9; }
+
+  /* ── TABS ── */
+  .tab-bar { display: flex; border-bottom: 0.5px solid var(--border); flex-shrink: 0; background: var(--bg); }
+  .tab-btn {
+    flex: 1; padding: 9px 4px; font-size: 12px;
+    border: none; background: none; cursor: pointer;
+    color: var(--text3); border-bottom: 2px solid transparent;
+    font-family: inherit; transition: color 0.15s;
+  }
+  .tab-btn.active { color: #6366f1; border-bottom-color: #6366f1; font-weight: 500; }
+
+  /* ── EMAIL CAPTURE ── */
+  #email-gate {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 28px 22px; gap: 16px;
+  }
+  #email-gate.hidden { display: none; }
+  .eg-icon { width: 52px; height: 52px; border-radius: 50%; background: var(--blue-bg); display: flex; align-items: center; justify-content: center; }
+  .eg-icon i { color: var(--blue); font-size: 24px; }
+  #email-gate h3 { font-size: 15px; font-weight: 600; color: var(--text); text-align: center; }
+  #email-gate p { font-size: 13px; color: var(--text2); text-align: center; line-height: 1.55; }
+  #email-input-field {
+    width: 100%; padding: 10px 13px; font-size: 13.5px;
+    border: 0.5px solid var(--border2); border-radius: var(--radius-sm);
+    background: var(--bg2); color: var(--text); font-family: inherit; outline: none;
+  }
+  #email-input-field:focus { border-color: #6366f1; }
+  #email-submit-btn {
+    width: 100%; padding: 10px; font-size: 13.5px; font-weight: 500;
+    background: var(--accent); color: #f1f5f9; border: none;
+    border-radius: var(--radius-sm); cursor: pointer; font-family: inherit;
+    transition: background 0.15s;
+  }
+  #email-submit-btn:hover { background: var(--accent2); }
+  .eg-skip { font-size: 12px; color: var(--text3); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+  .eg-skip:hover { color: var(--text2); }
+
+  /* ── MESSAGES ── */
+  #messages {
+    flex: 1; overflow-y: auto; padding: 14px 13px;
+    display: flex; flex-direction: column; gap: 10px; scroll-behavior: smooth;
+  }
+  #messages::-webkit-scrollbar { width: 3px; }
+  #messages::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+  .msg { display: flex; gap: 7px; max-width: 90%; }
+  .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+  .bubble {
+    padding: 9px 13px; border-radius: 14px; font-size: 13.5px;
+    line-height: 1.55; word-break: break-word; white-space: pre-wrap;
+  }
+  .msg.bot .bubble {
+    background: var(--bg2); color: var(--text);
+    border-bottom-left-radius: 4px; border: 0.5px solid var(--border);
+  }
+  .msg.user .bubble { background: var(--accent); color: #f1f5f9; border-bottom-right-radius: 4px; }
+  .msg.system .bubble {
+    background: var(--amber-bg); color: var(--amber-text);
+    border-radius: var(--radius-sm); font-size: 12.5px; border: 0.5px solid var(--amber);
+    display: flex; align-items: flex-start; gap: 7px; max-width: 100%;
+  }
+  .msg.system { align-self: center; max-width: 100%; }
+  .msg.handoff-msg .bubble {
+    background: var(--red-bg); color: var(--red-text);
+    border-radius: var(--radius-sm); font-size: 12.5px; border: 0.5px solid var(--red-text);
+  }
+  .msg.handoff-msg { align-self: center; max-width: 96%; }
+  .bot-ico {
+    width: 26px; height: 26px; border-radius: 50%; background: var(--accent);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px;
+  }
+  .bot-ico i { color: var(--accent-soft); font-size: 13px; }
+
+  .typing-bubble { padding: 10px 13px; }
+  .typing { display: flex; align-items: center; gap: 4px; }
+  .typing span {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--text3); animation: tbounce 1.2s infinite;
+  }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes tbounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
+
+  /* ── HANDOFF BANNER ── */
+  #handoff-banner {
+    margin: 0 12px 8px; padding: 10px 12px;
+    background: var(--red-bg); border: 0.5px solid var(--red);
+    border-radius: var(--radius-sm); display: none; flex-shrink: 0;
+  }
+  #handoff-banner.visible { display: flex; align-items: center; gap: 8px; }
+  #handoff-banner i { color: var(--red); font-size: 16px; flex-shrink: 0; }
+  #handoff-banner p { font-size: 12.5px; color: var(--red-text); flex: 1; line-height: 1.45; }
+  #handoff-banner button {
+    font-size: 11.5px; font-weight: 500; padding: 4px 10px;
+    background: var(--red); color: #fff; border: none;
+    border-radius: var(--radius-pill); cursor: pointer; font-family: inherit;
+    flex-shrink: 0;
+  }
+
+  /* ── QUICK REPLIES ── */
+  #quick-replies { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 13px 8px; flex-shrink: 0; }
+  .qr-btn {
+    font-size: 12px; padding: 5px 11px;
+    border: 0.5px solid var(--border2); border-radius: var(--radius-pill);
+    background: var(--bg2); color: var(--text2); cursor: pointer;
+    font-family: inherit; transition: background 0.15s, color 0.15s;
+  }
+  .qr-btn:hover { background: var(--accent); color: #f1f5f9; border-color: var(--accent); }
+
+  /* ── INPUT ── */
+  #chat-input-area {
+    padding: 10px 12px; border-top: 0.5px solid var(--border);
+    display: flex; gap: 8px; align-items: flex-end; flex-shrink: 0;
+    background: var(--bg);
+  }
+  #user-input {
+    flex: 1; border: 0.5px solid var(--border2); border-radius: 20px;
+    padding: 9px 14px; font-size: 13.5px; font-family: inherit;
+    background: var(--bg2); color: var(--text); resize: none;
+    max-height: 80px; line-height: 1.5; outline: none;
+  }
+  #user-input:focus { border-color: #6366f1; }
+  #send-btn {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--accent); border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    transition: background 0.15s;
+  }
+  #send-btn:hover { background: var(--accent2); }
+  #send-btn i { color: var(--accent-soft); font-size: 16px; }
+  #send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ── CONFIG PANEL ── */
+  #config-panel {
+    flex: 1; overflow-y: auto; padding: 18px 16px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  #config-panel.hidden { display: none; }
+  .cfg-label { font-size: 12px; color: var(--text2); display: block; margin-bottom: 4px; font-weight: 500; }
+  .cfg-input {
+    width: 100%; font-size: 13px; font-family: inherit;
+    background: var(--bg2); color: var(--text);
+    border: 0.5px solid var(--border2); border-radius: var(--radius-sm);
+    padding: 8px 10px; outline: none;
+  }
+  .cfg-input:focus { border-color: #6366f1; }
+  .cfg-textarea { resize: vertical; min-height: 68px; }
+  #save-cfg {
+    align-self: flex-end; padding: 8px 18px; font-size: 13px; font-weight: 500;
+    background: var(--accent); color: #f1f5f9; border: none;
+    border-radius: var(--radius-sm); cursor: pointer; font-family: inherit;
+  }
+  #save-cfg:hover { background: var(--accent2); }
+
+  /* ── HISTORY PANEL ── */
+  #history-panel {
+    flex: 1; overflow-y: auto; padding: 14px 14px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  #history-panel.hidden { display: none; }
+  .hist-empty { font-size: 13px; color: var(--text3); text-align: center; margin-top: 40px; }
+  .hist-msg { font-size: 12.5px; line-height: 1.5; padding: 8px 11px; border-radius: var(--radius-sm); }
+  .hist-msg.user { background: var(--accent); color: #f1f5f9; align-self: flex-end; max-width: 85%; }
+  .hist-msg.bot { background: var(--bg2); color: var(--text); border: 0.5px solid var(--border); max-width: 85%; }
+  .hist-meta { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
+  #export-btns { display: flex; gap: 8px; padding: 10px 14px; border-top: 0.5px solid var(--border); flex-shrink: 0; }
+  .exp-btn {
+    flex: 1; padding: 8px; font-size: 12.5px; font-weight: 500;
+    border: 0.5px solid var(--border2); border-radius: var(--radius-sm);
+    background: var(--bg2); color: var(--text2); cursor: pointer; font-family: inherit;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    transition: background 0.15s;
+  }
+  .exp-btn:hover { background: var(--accent); color: #f1f5f9; border-color: var(--accent); }
+  .exp-btn i { font-size: 14px; }
+
+  /* ── TOAST ── */
+  #toast {
+    position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(10px);
+    background: var(--accent); color: #f1f5f9; font-size: 13px;
+    padding: 9px 18px; border-radius: var(--radius-pill);
+    opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s;
+    z-index: 10000; white-space: nowrap;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── DEMO PAGE ── */
+  .demo-page { padding: 40px 28px; max-width: 520px; }
+  .demo-page h1 { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .demo-page p { font-size: 14px; color: var(--text2); line-height: 1.6; margin-bottom: 16px; }
+  .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+  .feat-card {
+    background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius);
+    padding: 14px; display: flex; flex-direction: column; gap: 6px;
+  }
+  .feat-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+  .feat-icon.blue { background: var(--blue-bg); }
+  .feat-icon.blue i { color: var(--blue); font-size: 16px; }
+  .feat-icon.green { background: var(--green-bg); }
+  .feat-icon.green i { color: var(--green); font-size: 16px; }
+  .feat-icon.amber { background: var(--amber-bg); }
+  .feat-icon.amber i { color: var(--amber); font-size: 16px; }
+  .feat-icon.red { background: var(--red-bg); }
+  .feat-icon.red i { color: var(--red); font-size: 16px; }
+  .feat-card h4 { font-size: 13px; font-weight: 600; color: var(--text); }
+  .feat-card p { font-size: 12px; color: var(--text2); line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<!-- Demo page content -->
+<div class="demo-page">
+  <h1>Support Chatbot Widget</h1>
+  <p>A fully-featured embeddable support bot powered by Claude. Click the chat button in the bottom-right to try it — all three new features are active.</p>
+  <div class="feature-grid">
+    <div class="feat-card">
+      <div class="feat-icon blue"><i class="ti ti-mail"></i></div>
+      <h4>Email capture</h4>
+      <p>Collects visitor email before the chat starts (skippable). Saved with the transcript.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon green"><i class="ti ti-download"></i></div>
+      <h4>History export</h4>
+      <p>Download the full conversation as a .txt or .json file from the History tab.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon amber"><i class="ti ti-alert-triangle"></i></div>
+      <h4>Handoff detection</h4>
+      <p>AI detects frustration or escalation signals and offers to connect a human agent.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon red"><i class="ti ti-settings"></i></div>
+      <h4>Configurable</h4>
+      <p>Set bot name, system prompt, and quick-reply buttons from the Configure tab.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Launcher -->
+<button id="chat-launcher" aria-label="Open support chat">
+  <i class="ti ti-message-circle-2"></i>
+  <div class="launcher-badge" id="launcher-badge">1</div>
+</button>
+
+<!-- Chat window -->
+<div id="chat-window" class="hidden" role="dialog" aria-label="Support chat">
+
+  <!-- Header -->
+  <div id="chat-header">
+    <div class="h-avatar"><i class="ti ti-robot"></i></div>
+    <div class="h-info">
+      <div class="h-name" id="header-name">Support Assistant</div>
+      <div class="h-status"><span class="status-dot" id="status-dot"></span><span id="status-text">Online · AI powered</span></div>
+    </div>
+    <button class="h-btn" id="close-btn" aria-label="Close chat"><i class="ti ti-x"></i></button>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="chat">Chat</button>
+    <button class="tab-btn" data-tab="history">History</button>
+    <button class="tab-btn" data-tab="config">Configure</button>
+  </div>
+
+  <!-- Email gate -->
+  <div id="email-gate">
+    <div class="eg-icon"><i class="ti ti-mail"></i></div>
+    <h3>Before we start…</h3>
+    <p>Enter your email so we can follow up if needed. We'll also attach it to your chat transcript.</p>
+    <input type="email" id="email-input-field" placeholder="you@example.com" />
+    <button id="email-submit-btn">Start chatting</button>
+    <span class="eg-skip" id="eg-skip">Skip for now</span>
+  </div>
+
+  <!-- Chat tab -->
+  <div id="messages" style="display:none;"></div>
+  <div id="handoff-banner">
+    <i class="ti ti-alert-circle"></i>
+    <p>It looks like you may need extra help. Would you like to connect with a human agent?</p>
+    <button id="handoff-confirm-btn">Connect</button>
+  </div>
+  <div id="quick-replies" style="display:none;"></div>
+  <div id="chat-input-area" style="display:none;">
+    <textarea id="user-input" placeholder="Ask a question…" rows="1" aria-label="Type your message"></textarea>
+    <button id="send-btn" aria-label="Send"><i class="ti ti-send"></i></button>
+  </div>
+
+  <!-- History tab -->
+  <div id="history-panel" class="hidden"></div>
+  <div id="export-btns" style="display:none; border-top: 0.5px solid var(--border);">
+    <button class="exp-btn" id="export-txt"><i class="ti ti-file-text"></i> Export .txt</button>
+    <button class="exp-btn" id="export-json"><i class="ti ti-file-code"></i> Export .json</button>
+  </div>
+
+  <!-- Config tab -->
+  <div id="config-panel" class="hidden">
+    <div>
+      <label class="cfg-label" for="cfg-name">Bot name</label>
+      <input class="cfg-input" type="text" id="cfg-name" value="Support Assistant" />
+    </div>
+    <div>
+      <label class="cfg-label" for="cfg-system">System prompt</label>
+      <textarea class="cfg-input cfg-textarea" id="cfg-system">You are a friendly and knowledgeable customer support agent. Answer questions concisely and helpfully. If you cannot resolve an issue, suggest the user contact a human agent. Keep replies short — 2–3 sentences unless more detail is truly needed.</textarea>
+    </div>
+    <div>
+      <label class="cfg-label" for="cfg-qr">Quick replies (one per line)</label>
+      <textarea class="cfg-input cfg-textarea" id="cfg-qr" style="min-height:56px;">What are your hours?
+How do I track my order?
+I need a refund</textarea>
+    </div>
+    <div>
+      <label class="cfg-label" for="cfg-email-required">Require email before chat</label>
+      <select class="cfg-input" id="cfg-email-required">
+        <option value="ask">Ask (skippable)</option>
+        <option value="require">Require</option>
+        <option value="skip">Don't ask</option>
+      </select>
+    </div>
+    <button id="save-cfg">Save & restart</button>
+  </div>
+
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────
+let isOpen = false, isLoading = false, emailCaptured = false;
+let history = [], userEmail = '';
+let handoffTriggered = false;
+let systemPrompt = document.getElementById('cfg-system').value.trim();
+let botName = 'Support Assistant';
+let emailMode = 'ask'; // ask | require | skip
+let sessionStart = new Date();
+
+// ── DOM refs ───────────────────────────────────────────
+const launcher = document.getElementById('chat-launcher');
+const badge = document.getElementById('launcher-badge');
+const chatWin = document.getElementById('chat-window');
+const closeBtn = document.getElementById('close-btn');
+const msgArea = document.getElementById('messages');
+const userInput = document.getElementById('user-input');
+const sendBtn = document.getElementById('send-btn');
+const qrArea = document.getElementById('quick-replies');
+const emailGate = document.getElementById('email-gate');
+const handoffBanner = document.getElementById('handoff-banner');
+const histPanel = document.getElementById('history-panel');
+const exportBtns = document.getElementById('export-btns');
+const configPanel = document.getElementById('config-panel');
+const tabBtns = document.querySelectorAll('.tab-btn');
+
+// ── Open / close ───────────────────────────────────────
+launcher.addEventListener('click', () => {
+  isOpen = !isOpen;
+  chatWin.classList.toggle('hidden', !isOpen);
+  launcher.querySelector('i').className = isOpen ? 'ti ti-x' : 'ti ti-message-circle-2';
+  badge.style.display = 'none';
+  if (isOpen && !emailCaptured) showEmailGate();
+  else if (isOpen && history.length === 0) beginChat();
+});
+closeBtn.addEventListener('click', () => { isOpen = false; chatWin.classList.add('hidden'); launcher.querySelector('i').className = 'ti ti-message-circle-2'; });
+
+// ── Tabs ───────────────────────────────────────────────
+function showTab(tab) {
+  tabBtns.forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  // chat elements
+  const chatVisible = tab === 'chat';
+  emailGate.style.display = (chatVisible && !emailCaptured && emailMode !== 'skip') ? 'flex' : 'none';
+  msgArea.style.display = (chatVisible && (emailCaptured || emailMode === 'skip')) ? 'flex' : 'none';
+  document.getElementById('chat-input-area').style.display = (chatVisible && (emailCaptured || emailMode === 'skip')) ? 'flex' : 'none';
+  qrArea.style.display = (chatVisible && (emailCaptured || emailMode === 'skip')) ? 'flex' : 'none';
+  handoffBanner.style.display = (chatVisible && handoffTriggered && (emailCaptured || emailMode === 'skip')) ? 'flex' : 'none';
+  // history
+  histPanel.classList.toggle('hidden', tab !== 'history');
+  exportBtns.style.display = tab === 'history' ? 'flex' : 'none';
+  // config
+  configPanel.classList.toggle('hidden', tab !== 'config');
+  if (tab === 'history') renderHistory();
+}
+tabBtns.forEach(btn => btn.addEventListener('click', () => showTab(btn.dataset.tab)));
+
+// ── Email gate ─────────────────────────────────────────
+function showEmailGate() {
+  if (emailMode === 'skip') { emailCaptured = true; beginChat(); return; }
+  emailGate.style.display = 'flex';
+  msgArea.style.display = 'none';
+  document.getElementById('chat-input-area').style.display = 'none';
+  qrArea.style.display = 'none';
+}
+document.getElementById('email-submit-btn').addEventListener('click', () => {
+  const val = document.getElementById('email-input-field').value.trim();
+  if (emailMode === 'require' && !isValidEmail(val)) { showToast('Please enter a valid email'); return; }
+  userEmail = val;
+  emailCaptured = true;
+  emailGate.style.display = 'none';
+  beginChat();
+});
+document.getElementById('eg-skip').addEventListener('click', () => {
+  if (emailMode === 'require') { showToast('Email is required to continue'); return; }
+  emailCaptured = true; userEmail = '';
+  emailGate.style.display = 'none';
+  beginChat();
+});
+function isValidEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
+
+// ── Begin chat ─────────────────────────────────────────
+function beginChat() {
+  msgArea.style.display = 'flex';
+  document.getElementById('chat-input-area').style.display = 'flex';
+  qrArea.style.display = 'flex';
+  buildQuickReplies();
+  if (history.length === 0) sendGreeting();
+  msgArea.scrollTop = msgArea.scrollHeight;
+}
+
+// ── Messages ───────────────────────────────────────────
+function addMsg(role, text) {
+  const wrap = document.createElement('div');
+  wrap.className = `msg ${role}`;
+  if (role === 'bot') {
+    wrap.innerHTML = `<div class="bot-ico"><i class="ti ti-robot"></i></div><div class="bubble"></div>`;
+    wrap.querySelector('.bubble').textContent = text;
+  } else if (role === 'system' || role === 'handoff-msg') {
+    wrap.innerHTML = `<div class="bubble"><i class="ti ti-info-circle" style="flex-shrink:0;font-size:14px;margin-top:1px;"></i><span></span></div>`;
+    wrap.querySelector('span').textContent = text;
+  } else {
+    wrap.innerHTML = `<div class="bubble"></div>`;
+    wrap.querySelector('.bubble').textContent = text;
+  }
+  msgArea.appendChild(wrap);
+  msgArea.scrollTop = msgArea.scrollHeight;
+  return wrap;
+}
+
+function showTyping() {
+  const el = document.createElement('div');
+  el.className = 'msg bot'; el.id = 'typing-ind';
+  el.innerHTML = `<div class="bot-ico"><i class="ti ti-robot"></i></div><div class="bubble typing-bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
+  msgArea.appendChild(el);
+  msgArea.scrollTop = msgArea.scrollHeight;
+}
+function removeTyping() { const e = document.getElementById('typing-ind'); if (e) e.remove(); }
+
+// ── Greeting ───────────────────────────────────────────
+function sendGreeting() {
+  const name = userEmail ? ` I see you're reaching out as ${userEmail}.` : '';
+  const greet = `Hi! I'm ${botName}.${name} How can I help you today?`;
+  addMsg('bot', greet);
+  history.push({ role: 'assistant', content: greet });
+}
+
+// ── Human handoff detection ────────────────────────────
+const HANDOFF_PHRASES = [
+  /human/i, /real person/i, /agent/i, /speak to someone/i, /talk to someone/i,
+  /escalate/i, /supervisor/i, /manager/i, /not helpful/i, /frustrated/i,
+  /useless/i, /doesn't help/i, /can't help/i, /cannot help/i, /worst/i,
+  /terrible/i, /awful/i, /give up/i, /this is ridiculous/i
+];
+function checkHandoff(text) {
+  if (handoffTriggered) return;
+  const triggered = HANDOFF_PHRASES.some(r => r.test(text));
+  if (triggered) {
+    handoffTriggered = true;
+    const dot = document.getElementById('status-dot');
+    dot.className = 'status-dot away';
+    document.getElementById('status-text').textContent = 'Handoff available';
+    handoffBanner.style.display = 'flex';
+    handoffBanner.classList.add('visible');
+  }
+}
+
+document.getElementById('handoff-confirm-btn').addEventListener('click', () => {
+  handoffBanner.style.display = 'none';
+  const dot = document.getElementById('status-dot');
+  dot.className = 'status-dot handoff';
+  document.getElementById('status-text').textContent = 'Connecting to agent…';
+  addMsg('handoff-msg', '🔁 Handoff initiated. A human agent has been notified' + (userEmail ? ` and will email you at ${userEmail}` : '') + '. Average wait: 2–5 min.');
+  history.push({ role: 'assistant', content: '[HANDOFF INITIATED]' });
+  sendBtn.disabled = true;
+  userInput.placeholder = 'Waiting for human agent…';
+  showToast('Connecting you to a human agent…');
+  setTimeout(() => {
+    dot.className = 'status-dot';
+    document.getElementById('status-text').textContent = 'Human agent connected';
+    addMsg('system', '✅ Agent Maya is now connected and will respond shortly.');
+  }, 3500);
+});
+
+// ── Quick replies ──────────────────────────────────────
+function buildQuickReplies() {
+  qrArea.innerHTML = '';
+  const lines = document.getElementById('cfg-qr').value.split('\n').map(l => l.trim()).filter(Boolean);
+  lines.forEach(label => {
+    const btn = document.createElement('button');
+    btn.className = 'qr-btn'; btn.textContent = label;
+    btn.addEventListener('click', () => { if (!isLoading) sendMessage(label); });
+    qrArea.appendChild(btn);
+  });
+}
+
+// ── Send message ───────────────────────────────────────
+async function sendMessage(text) {
+  if (!text.trim() || isLoading) return;
+  isLoading = true; sendBtn.disabled = true;
+  userInput.value = ''; userInput.style.height = 'auto';
+  addMsg('user', text);
+  history.push({ role: 'user', content: text });
+  checkHandoff(text);
+  showTyping();
+  try {
+    const res = await fetch('http://localhost:3000/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: history
+      })
+    });
+    const data = await res.json();
+    removeTyping();
+    const reply = data.content?.map(b => b.text || '').join('') || 'Sorry, I couldn\'t get a response. Please try again.';
+    addMsg('bot', reply);
+    history.push({ role: 'assistant', content: reply });
+    checkHandoff(reply);
+  } catch {
+    removeTyping();
+    addMsg('bot', 'Connection error — please try again.');
+  }
+  isLoading = false; sendBtn.disabled = false; userInput.focus();
+}
+sendBtn.addEventListener('click', () => sendMessage(userInput.value));
+userInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(userInput.value); } });
+userInput.addEventListener('input', () => { userInput.style.height = 'auto'; userInput.style.height = Math.min(userInput.scrollHeight, 80) + 'px'; });
+
+// ── History panel ──────────────────────────────────────
+function renderHistory() {
+  histPanel.innerHTML = '';
+  if (history.length === 0) {
+    histPanel.innerHTML = '<p class="hist-empty">No messages yet.</p>'; return;
+  }
+  history.forEach(m => {
+    const el = document.createElement('div');
+    el.className = `hist-msg ${m.role === 'user' ? 'user' : 'bot'}`;
+    const meta = document.createElement('div');
+    meta.className = 'hist-meta';
+    meta.textContent = m.role === 'user' ? (userEmail || 'You') : botName;
+    el.appendChild(meta);
+    const content = document.createElement('div');
+    content.textContent = m.content;
+    el.appendChild(content);
+    histPanel.appendChild(el);
+  });
+  histPanel.scrollTop = histPanel.scrollHeight;
+}
+
+// ── Export ─────────────────────────────────────────────
+function buildTxt() {
+  let out = `Chat Transcript\nDate: ${sessionStart.toLocaleString()}\n`;
+  if (userEmail) out += `Email: ${userEmail}\n`;
+  out += '─'.repeat(40) + '\n';
+  history.forEach(m => {
+    const speaker = m.role === 'user' ? (userEmail || 'User') : botName;
+    out += `\n[${speaker}]\n${m.content}\n`;
+  });
+  return out;
+}
+function buildJson() {
+  return JSON.stringify({ date: sessionStart.toISOString(), userEmail, botName, messages: history }, null, 2);
+}
+function download(filename, content, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type }));
+  a.download = filename; a.click();
+  showToast(`Exported as ${filename}`);
+}
+document.getElementById('export-txt').addEventListener('click', () => download(`chat-${Date.now()}.txt`, buildTxt(), 'text/plain'));
+document.getElementById('export-json').addEventListener('click', () => download(`chat-${Date.now()}.json`, buildJson(), 'application/json'));
+
+// ── Config ─────────────────────────────────────────────
+document.getElementById('save-cfg').addEventListener('click', () => {
+  systemPrompt = document.getElementById('cfg-system').value.trim();
+  botName = document.getElementById('cfg-name').value.trim() || 'Support Assistant';
+  emailMode = document.getElementById('cfg-email-required').value;
+  document.getElementById('header-name').textContent = botName;
+  history = []; handoffTriggered = false;
+  handoffBanner.style.display = 'none';
+  document.getElementById('status-dot').className = 'status-dot';
+  document.getElementById('status-text').textContent = 'Online · AI powered';
+  msgArea.innerHTML = '';
+  sendBtn.disabled = false;
+  userInput.placeholder = 'Ask a question…';
+  emailCaptured = false;
+  userEmail = '';
+  document.getElementById('email-input-field').value = '';
+  showTab('chat');
+  showToast('Config saved — chat restarted');
+  if (emailMode === 'skip') { emailCaptured = true; beginChat(); }
+  else showEmailGate();
+});
+
+// ── Toast ──────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+// ── Init ───────────────────────────────────────────────
+// Show badge after 3s to prompt user
+setTimeout(() => { if (!isOpen) badge.style.display = 'flex'; }, 3000);
+</script>
+</body>
+</html>
